@@ -4,3 +4,9 @@ client_id*
 client_secret*
 ngrok_auth_token*
 config.txt
+notes.txt
+mp4_processing.db
+Clips
+chatSegments
+*log
+streamers.txt

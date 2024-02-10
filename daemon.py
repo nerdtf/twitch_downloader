@@ -8,7 +8,7 @@ import ATRHandler
 import twitch
 from utils import get_client_id, StreamQualities
 from watcher import Watcher
-
+from tg_bot import send_tg
 
 class Daemon(HTTPServer):
     #
@@ -20,7 +20,7 @@ class Daemon(HTTPServer):
     LEASE_SECONDS = 864000  # 10 days = 864000
     check_interval = 10
 
-    def __init__(self, server_address, RequestHandlerClass):
+    def __init__(self, server_address, RequestHandlerClass, streamers_file=None):
         super().__init__(server_address, RequestHandlerClass)
         self.PORT = server_address[1]
         self.streamers = {}  # holds all streamers that need to be surveilled
@@ -32,6 +32,8 @@ class Daemon(HTTPServer):
         # ThreadPoolExecutor(max_workers): If max_workers is None or not given, it will default to the number of
         # processors on the machine, multiplied by 5
         self.pool = ThreadPoolExecutor()
+        if streamers_file:
+            self.load_streamers_from_file(streamers_file)
 
     def add_streamer(self, streamer, quality=StreamQualities.BEST.value):
         streamer = streamer.lower()
@@ -89,50 +91,56 @@ class Daemon(HTTPServer):
         return 'Download folder is now set to \'' + download_folder + '\' .'
 
     def _check_streams(self):
-        user_ids = []
+        user_ids = [self.streamers[s]['user_info']['id'] for s in self.streamers]
+        stream_info = twitch.get_stream_info(*user_ids)
 
-        # get channel ids of all streamers
-        for streamer in self.streamers.keys():
-            user_ids.append(self.streamers[streamer]['user_info']['id'])
+        live_streamers = []
 
-        if user_ids:
-            streams_info = twitch.get_stream_info(*user_ids)
+        # Process each streamer based on their status
+        for streamer_name, info in self.streamers.items():
+            user_id = info['user_info']['id']
+            status = stream_info[user_id]
+            if status['status'] == 'online':
+                # Streamer is live, add to the list to start watchers
+                info.update({'stream_info': status})
+                live_streamers.append(streamer_name)
+            elif status['status'] == 'offline':
+                # Streamer went offline, handle the watcher
+                if streamer_name in self.watched_streamers:
+                    watcher = self.watched_streamers.pop(streamer_name)['watcher']
+                    watcher.clean_break()  # Signal watcher to stop
+                    watcher.quit()
 
-            # save streaming information for all streamers, if it exists
-            for stream_info in streams_info:
-                streamer_name = stream_info['user_name'].lower()
-                self.streamers[streamer_name].update({'stream_info': stream_info})
-
-            live_streamers = []
-
-            # check which streamers are live
-            for streamer_info in self.streamers.values():
-                try:
-                    stream_info = streamer_info['stream_info']
-                    if stream_info['type'] == 'live':
-                        live_streamers.append(stream_info['user_name'].lower())
-                except KeyError:
-                    pass
-
-            self._start_watchers(live_streamers)
+        # Start watchers for live streamers
+        self._start_watchers(live_streamers)
 
         if not self.kill:
             t = threading.Timer(self.check_interval, self._check_streams)
             t.start()
+
+
 
     def _start_watchers(self, live_streamers_list):
         for live_streamer in live_streamers_list:
             if live_streamer not in self.watched_streamers:
                 live_streamer_dict = self.streamers.pop(live_streamer)
                 curr_watcher = Watcher(live_streamer_dict, self.download_folder)
+
+                # Submit the watch method to the thread pool and attach the callback
+                t = self.pool.submit(curr_watcher.watch)
+                t.add_done_callback(self._watcher_callback)
+
+                # Submit the download_chat method to the thread pool
+                self.pool.submit(curr_watcher.download_chat)
+
                 self.watched_streamers.update({live_streamer: {'watcher': curr_watcher,
-                                                               'streamer_dict': live_streamer_dict}})
-                if not self.kill:
-                    t = self.pool.submit(curr_watcher.watch)
-                    t.add_done_callback(self._watcher_callback)
+                                                            'streamer_dict': live_streamer_dict}})
 
     def _watcher_callback(self, returned_watcher):
         streamer_dict = returned_watcher.result()
+        if streamer_dict is None:
+            print("streamer_dict is None in _watcher_callback")
+            return
         streamer = streamer_dict['user_info']['login']
         kill = streamer_dict['kill']
         cleanup = streamer_dict['cleanup']
@@ -141,8 +149,9 @@ class Daemon(HTTPServer):
             print('Finished watching ' + streamer)
         else:
             output_filepath = streamer_dict['output_filepath']
-            if os.path.exists(output_filepath):
+            if output_filepath and os.path.exists(output_filepath):
                 os.remove(output_filepath)
+                print(f'Removed file: {output_filepath}')
         if not kill:
             self.add_streamer(streamer, streamer_dict['preferred_quality'])
 
@@ -154,10 +163,21 @@ class Daemon(HTTPServer):
         for streamer in self.watched_streamers.values():
             watcher = streamer['watcher']
             watcher.quit()
-        self.pool.shutdown()
+        self.pool.shutdown(wait=True)
         self.server_close()
         threading.Thread(target=self.shutdown, daemon=True).start()
         return 'Daemon exited successfully'
+    
+    def load_streamers_from_file(self, file_path):
+        if not os.path.exists(file_path):
+            print("Streamers file not found. Proceeding without loading streamers.")
+            return
+
+        with open(file_path, 'r') as file:
+            for line in file:
+                if streamer := line.strip():
+                    self.add_streamer(streamer)
+                    print(f"Added {streamer} to watchlist from file.")
 
 
 if __name__ == '__main__':
