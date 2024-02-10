@@ -1,0 +1,12 @@
+version: '3.3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Ensure this points to your application's Dockerfile
+    tty: true
+    stdin_open: true
+    volumes:
+      - /home/nerd20/projects/twitch-download/:/home/nerd20/projects/twitch-download/
+    environment:
+      - DOWNLOAD_FOLDER=/home/nerd20/projects/twitch-download

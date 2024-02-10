@@ -1,0 +1,145 @@
+2024-01-07 00:32:12,249 INFO:Script started
+2024-01-07 00:32:17,452 INFO:Starting processing for video ID 81
+2024-01-07 00:32:18,376 ERROR:An error occurred during processing: name 'e' is not defined
+Traceback (most recent call last):
+  File "C:\OpenServer\twitch\automatic-twitch-recorder\cron_script.py", line 76, in process_videos
+    subprocess.run(['python', video_worker_path, video_path, config_path], check=True)
+  File "C:\Users\—‡¯‡\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['python', 'C:\\OpenServer\\twitch\\automatic-twitch-recorder\\videoProcessing\\videoWorker.py', 'C:\\OpenServer\\twitch\\automatic-twitch-recorder\\strogo1337\\2024-01-06 20.02.28 - StRoGo1337 - \U0001f534 Õ≈¬≈–Œﬂ“Õ€…  ŒÕ“≈Õ“ œÀ¿Õ \U0001f60e œ–Œ¡”≈Ã œ≈À‹Ã≈Õ» Œ“ ƒ≈ÿ≈¬€’ ƒŒ —¿Ã€’ ƒŒ–Œ√»’ \U0001f92f ¬Ã≈—“≈ — @des0ut @shadowkekw @gaechkatm  !Ú„ !fonbet.mp4', 'C:\\OpenServer\\twitch\\automatic-twitch-recorder\\videoProcessing\\config.json']' returned non-zero exit status 1.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\OpenServer\twitch\automatic-twitch-recorder\cron_script.py", line 122, in <module>
+    process_videos()
+  File "C:\OpenServer\twitch\automatic-twitch-recorder\cron_script.py", line 83, in process_videos
+    logging.error("Error processing video ID %s: %s", video_id, e)
+                                                                ^
+NameError: name 'e' is not defined
+2024-01-07 00:36:39,451 INFO:Script started
+2024-01-07 00:36:44,639 INFO:Starting processing for video ID 82
+2024-01-07 00:36:46,155 INFO:Finished processing for video ID 82
+2024-01-07 00:40:09,264 INFO:Script started
+2024-01-07 00:40:42,701 INFO:Script started
+2024-01-07 00:41:03,892 INFO:Script started
+2024-01-07 00:41:09,374 INFO:Starting processing for video ID 82
+2024-01-07 00:41:15,131 INFO:Finished processing for video ID 82
+2024-01-07 00:42:27,607 INFO:Script started
+2024-01-07 00:42:32,767 INFO:Starting processing for video ID 82
+2024-01-07 00:42:34,393 INFO:Finished processing for video ID 82
+2024-01-07 00:43:49,591 INFO:Script started
+2024-01-07 00:43:54,629 INFO:Starting processing for video ID 82
+2024-01-07 00:43:55,953 INFO:Finished processing for video ID 82
+2024-01-07 00:45:12,154 INFO:Script started
+2024-01-07 00:45:17,332 INFO:Starting processing for video ID 82
+2024-01-07 00:45:18,896 INFO:Finished processing for video ID 82
+2024-01-07 00:54:02,112 INFO:Script started
+2024-01-07 00:54:18,475 INFO:Script started
+2024-01-07 00:54:23,764 INFO:Starting processing for video ID 82
+2024-01-07 01:18:40,285 INFO:Finished processing for video ID 82
+2024-01-07 02:10:00,530 INFO:Script started
+2024-01-07 02:10:05,737 INFO:Starting processing for video ID 36
+2024-01-07 02:10:55,627 INFO:Finished processing for video ID 36
+2024-01-07 02:14:22,486 INFO:Script started
+2024-01-07 02:14:27,415 INFO:Starting processing for video ID 37
+2024-01-07 02:57:07,504 INFO:Finished processing for video ID 37
+2024-01-07 02:57:12,460 INFO:Starting processing for video ID 38
+2024-01-07 03:50:40,665 INFO:Finished processing for video ID 38
+2024-01-07 03:50:45,425 INFO:Starting processing for video ID 39
+2024-01-07 03:54:29,311 INFO:Finished processing for video ID 39
+2024-01-07 13:02:41,289 INFO:Script started
+2024-01-07 13:02:46,444 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 13:08:57,302 INFO:Script started
+2024-01-07 13:09:02,484 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 13:09:02,484 INFO:Starting processing for video ID 40
+2024-01-07 13:50:25,825 INFO:Finished processing for video ID 40
+2024-01-07 13:50:30,972 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 13:50:30,972 INFO:Starting processing for video ID 41
+2024-01-07 14:00:50,390 INFO:Finished processing for video ID 41
+2024-01-07 14:00:55,438 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 14:00:55,439 INFO:Starting processing for video ID 42
+2024-01-07 14:22:02,079 INFO:Finished processing for video ID 42
+2024-01-07 14:51:07,663 INFO:Script started
+2024-01-07 14:51:12,701 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 14:51:12,701 INFO:Starting processing for video ID 43
+2024-01-07 14:51:41,035 INFO:Finished processing for video ID 43
+2024-01-07 14:51:46,101 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 14:51:46,101 INFO:Starting processing for video ID 44
+2024-01-07 15:08:27,035 INFO:Finished processing for video ID 44
+2024-01-07 15:08:32,131 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 15:08:32,131 INFO:Starting processing for video ID 45
+2024-01-07 15:18:00,673 INFO:Finished processing for video ID 45
+2024-01-07 15:18:06,073 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 15:18:06,073 INFO:Starting processing for video ID 46
+2024-01-07 15:19:48,823 INFO:Finished processing for video ID 46
+2024-01-07 15:19:53,930 INFO:Live streams are ongoing. Skipping video processing.
+2024-01-07 15:19:53,930 INFO:Starting processing for video ID 47
+2024-01-07 15:33:51,019 INFO:Finished processing for video ID 47
+2024-01-08 01:22:40,887 INFO:Script started
+2024-01-08 01:22:45,754 INFO:Starting processing for video ID 48
+2024-01-08 01:22:46,867 INFO:Finished processing for video ID 48
+2024-01-08 01:22:51,681 INFO:Starting processing for video ID 49
+2024-01-08 01:22:52,949 INFO:Finished processing for video ID 49
+2024-01-08 01:22:57,743 INFO:Starting processing for video ID 50
+2024-01-08 01:22:58,737 INFO:Finished processing for video ID 50
+2024-01-08 01:23:03,603 INFO:Starting processing for video ID 51
+2024-01-08 01:23:10,319 INFO:Finished processing for video ID 51
+2024-01-08 01:23:15,272 INFO:Starting processing for video ID 52
+2024-01-08 01:23:15,280 ERROR:Missing or empty file for video ID 52: Chat file
+2024-01-08 01:23:20,336 INFO:Starting processing for video ID 53
+2024-01-08 01:23:34,421 INFO:Finished processing for video ID 53
+2024-01-08 01:23:39,412 INFO:Starting processing for video ID 54
+2024-01-08 01:23:52,350 INFO:Finished processing for video ID 54
+2024-01-08 01:23:57,330 INFO:Starting processing for video ID 55
+2024-01-08 01:23:58,357 INFO:Finished processing for video ID 55
+2024-01-08 01:24:03,320 INFO:Starting processing for video ID 56
+2024-01-08 01:24:03,336 ERROR:Missing or empty file for video ID 56: Chat file
+2024-01-08 01:24:08,332 INFO:Starting processing for video ID 57
+2024-01-08 01:24:08,352 ERROR:Missing or empty file for video ID 57: Chat file
+2024-01-08 01:24:13,568 INFO:Starting processing for video ID 58
+2024-01-08 01:24:13,568 ERROR:Missing or empty file for video ID 58: Chat file
+2024-01-08 01:24:18,711 INFO:Starting processing for video ID 59
+2024-01-08 01:24:18,721 ERROR:Missing or empty file for video ID 59: Chat file
+2024-01-08 01:24:28,779 INFO:Starting processing for video ID 60
+2024-01-08 01:24:51,672 INFO:Finished processing for video ID 60
+2024-01-08 01:24:56,687 INFO:Starting processing for video ID 61
+2024-01-08 01:24:56,695 ERROR:Missing or empty file for video ID 61: Chat file
+2024-01-08 01:25:04,066 INFO:Starting processing for video ID 62
+2024-01-08 01:25:04,085 ERROR:Missing or empty file for video ID 62: Chat file
+2024-01-08 01:25:09,367 INFO:Starting processing for video ID 63
+2024-01-08 01:25:10,358 INFO:Finished processing for video ID 63
+2024-01-08 01:25:15,928 INFO:Starting processing for video ID 64
+2024-01-08 01:30:10,978 INFO:Finished processing for video ID 64
+2024-01-08 01:30:15,946 INFO:Starting processing for video ID 65
+2024-01-08 01:30:16,985 INFO:Finished processing for video ID 65
+2024-01-08 01:30:21,991 INFO:Starting processing for video ID 66
+2024-01-08 01:30:21,992 ERROR:Missing or empty file for video ID 66: Chat file
+2024-01-08 01:30:38,890 INFO:Starting processing for video ID 67
+2024-01-08 01:30:38,897 ERROR:Missing or empty file for video ID 67: Chat file
+2024-01-08 01:31:16,916 INFO:Starting processing for video ID 68
+2024-01-08 01:31:37,403 INFO:Finished processing for video ID 68
+2024-01-08 01:31:47,610 INFO:Starting processing for video ID 69
+2024-01-08 01:31:47,617 ERROR:Missing or empty file for video ID 69: Chat file
+2024-01-08 01:31:53,056 INFO:Starting processing for video ID 70
+2024-01-08 01:31:53,057 ERROR:Missing or empty file for video ID 70: Chat file
+2024-01-08 01:31:58,176 INFO:Starting processing for video ID 71
+2024-01-08 01:31:58,177 ERROR:Missing or empty file for video ID 71: Chat file
+2024-01-08 01:32:03,316 INFO:Starting processing for video ID 72
+2024-01-08 01:32:03,323 ERROR:Missing or empty file for video ID 72: Chat file
+2024-01-08 01:32:08,406 INFO:Starting processing for video ID 73
+2024-01-08 01:32:08,415 ERROR:Missing or empty file for video ID 73: Chat file
+2024-01-08 01:32:13,555 INFO:Starting processing for video ID 74
+2024-01-08 01:32:13,555 ERROR:Missing or empty file for video ID 74: Chat file
+2024-01-08 01:32:18,665 INFO:Starting processing for video ID 75
+2024-01-08 01:35:07,464 INFO:Finished processing for video ID 75
+2024-01-08 01:35:12,495 INFO:Starting processing for video ID 76
+2024-01-08 01:37:59,783 INFO:Finished processing for video ID 76
+2024-01-08 01:38:04,773 INFO:Starting processing for video ID 77
+2024-01-08 01:38:04,778 ERROR:Missing or empty file for video ID 77: Chat file
+2024-01-08 01:38:10,225 INFO:Starting processing for video ID 78
+2024-01-08 01:38:10,226 ERROR:Missing or empty file for video ID 78: Chat file
+2024-01-08 01:38:15,356 INFO:Starting processing for video ID 79
+2024-01-08 01:39:13,804 INFO:Finished processing for video ID 79
+2024-01-08 01:39:18,879 INFO:Starting processing for video ID 80
+2024-01-08 01:39:18,888 ERROR:Missing or empty file for video ID 80: Chat file
