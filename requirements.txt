@@ -18,5 +18,5 @@ typing-extensions==3.7.4.3
 urllib3==1.26.2
 websocket-client==0.57.0
 zipp==3.4.0
-chat_downloader=0.2.8
-PythonVideoConverter=1.0.3
+chat_downloader==0.2.8
+PythonVideoConverter==1.0.3

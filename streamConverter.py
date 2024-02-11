@@ -8,12 +8,13 @@ def get_file_size(file_path):
 
 
 def convert_stream_to_mp4(ts_file_path):
-    ffmpeg_path = 'C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe'
-    ffprobe_path = 'C:\\Program Files\\FFmpeg\\bin\\ffprobe.exe'
-    conv = Converter(ffmpeg_path, ffprobe_path)
+    # ffmpeg_path = 'C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe'
+    # ffprobe_path = 'C:\\Program Files\\FFmpeg\\bin\\ffprobe.exe'
+    conv = Converter()
 
     # Get the size and duration of the original TS file
     info = conv.probe(ts_file_path)
+    print(info)
     original_size = round(get_file_size(ts_file_path) / (1024 * 1024 * 1024) , 2)  # Convert bytes to gigabytes
     duration = round(info.format.duration, 2)
 
