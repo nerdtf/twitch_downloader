@@ -3,14 +3,15 @@ import logging
 import twitch
 import db_connection
 import subprocess
-import time
 from tg_bot import send_tg
+from main import STREAMERS_FILE
 
 # Configure logging
-logging.basicConfig(filename='C:\\OpenServer\\twitch\\automatic-twitch-recorder\\processing.log',
+filename = os.path.join(os.path.normpath((os.path.dirname(os.path.abspath(__file__)))), "processing.log")
+logging.basicConfig(filename=filename,
                     level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
-config_path = "C:\\OpenServer\\twitch\\automatic-twitch-recorder\\videoProcessing\\config.json"
+config_path = os.path.join(os.path.join(os.path.normpath((os.path.dirname(os.path.abspath(__file__)))), "videoProcessing"), "config.json")
 
 def load_streamers_from_file(file_path):
     streamers = []
@@ -38,7 +39,7 @@ def are_any_streamers_live(streamer_user_ids):
 
 
 def check_live_streams():
-    streamers_file_path = "C:\\OpenServer\\twitch\\automatic-twitch-recorder\\streamers.txt"  # Update this path
+    streamers_file_path = os.path.join(os.getcwd(), STREAMERS_FILE) # Update this path
     streamer_names = load_streamers_from_file(streamers_file_path)
     streamer_user_ids = fetch_streamer_user_ids(streamer_names)
     return are_any_streamers_live(streamer_user_ids)
@@ -50,7 +51,7 @@ def process_videos():
 
     if conn is not None:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, file_path, chat_file_path FROM videos WHERE processed = 0 AND id < 83")
+        cursor.execute("SELECT id, file_path, chat_file_path FROM videos WHERE processed = 0 AND id = 2")
         videos = cursor.fetchall()
 
         for video in videos:
@@ -67,13 +68,13 @@ def process_videos():
                 # Construct the path to chatProcessor.py
                 chat_processor_path = os.path.join(os.path.dirname(__file__), 'chatProcessing', 'chatProcessor.py')
                 # Call chatProcessor script
-                subprocess.run(['python', chat_processor_path, chat_path], check=True)
+                subprocess.run(['python3', chat_processor_path, chat_path], check=True)
 
                 # Construct the path to videoWorker.py
                 video_worker_path = os.path.join(os.path.dirname(__file__), 'videoProcessing', 'videoWorker.py')
 
                 # Call videoProcessor script with video path and configuration path
-                subprocess.run(['python', video_worker_path, video_path, config_path], check=True)
+                subprocess.run(['python3', video_worker_path, video_path, config_path, chat_path], check=True)
 
 
                 # Update processed status to 2 (success)
@@ -116,9 +117,12 @@ def checkIfFileExistREmoveIfNot(video_path, chat_path, video_id, cursor, conn):
     return True
 
 
-if __name__ == "__main__":
+def main():
     logging.info("Script started")
     try:
         process_videos()
     except Exception as e:
         logging.exception("An error occurred during processing: %s", e)
+
+if __name__ == "__main__":
+    main()

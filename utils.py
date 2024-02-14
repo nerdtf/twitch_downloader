@@ -24,7 +24,7 @@ class StreamQualities(Enum):
     _1080p = '1080p'
     _1080p60 = '1080p60'
     WORST = 'worst'
-    BEST = '720p60'
+    BEST = '1080p60'
 
 
 def _read_config():

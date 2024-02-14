@@ -2,6 +2,6 @@
     "processing_mode": 1,
     "delete_original_video": true,
     "save_chat_messages": true,
-    "clips_storage_path":"C:\\OpenServer\\twitch\\automatic-twitch-recorder\\Clips",
-    "deleteNotInteresting": false
+    "clips_storage_path":"/home/nerd/projects/twitch/Clips",
+    "deleteNotInteresting": true
 }

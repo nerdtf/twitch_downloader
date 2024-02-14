@@ -1,15 +1,12 @@
 import datetime
 import streamlink
 import os
-import threading
 from utils import get_valid_filename, StreamQualities
 from chat_downloader import ChatDownloader
 import json
 from requests.exceptions import RequestException
-from streamConverter import convert_stream_to_mp4
 from videoProcessing.videoWorker import insert_video
 from tg_bot import send_tg
-from multiprocessing import Process
 
 
 class Watcher:
@@ -123,6 +120,7 @@ class Watcher:
         chat_url = f'https://www.twitch.tv/{self.streamer_login}'
         curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H.%M.%S")
         chat_output_file = self._formatted_download_folder(self.streamer_login) + os.path.sep + curr_time + " - " + self.streamer + " - " + get_valid_filename(self.stream_title) + "chat.json"
+        insert_video(self.streamer_dict['output_filepath'], chat_output_file)
 
         chat = ChatDownloader().get_chat(chat_url)
         with open(chat_output_file, 'w') as f:
@@ -140,16 +138,3 @@ class Watcher:
 
     def start_chat_download(self):
         self.download_chat()
-
-    def handle_stream_conversion(self):
-        print("converting is triggered")
-        if ts_file_path := self.streamer_dict.get('output_filepath'):
-            send_tg(f"{self.streamer}'s stream is converting to mp4,")
-            print(f"convert stream to mp4 -> {ts_file_path}")
-            conversion_process = Process(target=convert_stream_to_mp4, args=(ts_file_path,))
-            conversion_process.start()
-            conversion_process.join()  # Wait for the conversion to finish
-
-            # Insert video record into the database
-            chat_file_path = ts_file_path.replace('.ts', 'chat.json')  # Assuming chat file has same name with 'chat.json' extension
-            insert_video(ts_file_path.replace('.ts', '.mp4'), chat_file_path)

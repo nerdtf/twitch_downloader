@@ -4,14 +4,17 @@ import subprocess
 import sys
 import time
 import logging
+from multiprocessing import Process
 
 from datetime import datetime, timedelta
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db_connection import create_connection
 from tg_bot import send_tg
+from streamConverter import convert_stream_to_mp4
 
-logging.basicConfig(filename='C:\\OpenServer\\twitch\\automatic-twitch-recorder\\daemon.log',
+filename = os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")), "processing.log")
+logging.basicConfig(filename=filename,
                     level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
 
@@ -191,6 +194,17 @@ def process_timeframe(video_path, video_start_time, timeframe, clip_dir, config)
 
     return success
 
+def handle_stream_conversion(video_ts_path, streamer_name):
+    send_tg(f"{streamer_name}'s stream is converting to mp4,")
+    conversion_process = Process(target=convert_stream_to_mp4, args=(video_ts_path,))
+    conversion_process.start()
+    conversion_process.join()  # Wait for the conversion to finish
+    send_tg(f"Starting processing for streamer: {streamer_name}")
+    video_mp4_path =  video_ts_path.replace('.ts', '.mp4')
+    file_size = os.path.getsize(video_mp4_path) / (1024 * 1024 * 1024)   # Size in GB
+    send_tg(f"File size: {file_size:.2f} GB")
+    return video_mp4_path
+
 def make_clips(video_path, timeframes_json, config_path):
     start_time = time.time()
     config = read_config(config_path)
@@ -203,10 +217,6 @@ def make_clips(video_path, timeframes_json, config_path):
     else:
         print("Error: Invalid video filename format.")
         return
-    
-    send_tg(f"Starting processing for streamer: {streamer_name}")
-    file_size = os.path.getsize(video_path) / (1024 * 1024 * 1024)   # Size in GB
-    send_tg(f"File size: {file_size:.2f} GB")
 
     try:
         video_date = datetime.strptime(video_date_str, "%Y-%m-%d %H.%M.%S")
@@ -243,9 +253,10 @@ def make_clips(video_path, timeframes_json, config_path):
             for timeframe in timeframes:
                 process_timeframe(video_path, video_start_time, timeframe, clip_dir, config)
         else:
+            video_mp4_path = handle_stream_conversion(video_path,streamer_name)
             # Process each timeframe individually
             for timeframe in timeframes:
-                success = process_timeframe(video_path, video_start_time, timeframe, clip_dir, config)
+                success = process_timeframe(video_mp4_path, video_start_time, timeframe, clip_dir, config)
                 if success:
                     success_count += 1
                 else:
@@ -263,27 +274,27 @@ def make_clips(video_path, timeframes_json, config_path):
         except OSError as e:
             print(f"Error deleting original video file: {e}")
 
-def construct_segments_json_path(video_path):
-    base_dir = "C:\\OpenServer\\twitch\\automatic-twitch-recorder"
+def construct_segments_json_path(chat_path):
+    base_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     chat_segments_dir = os.path.join(base_dir, "chatSegments")
-
     # Extract the base filename without the .mp4 extension
-    base_filename = os.path.splitext(os.path.basename(video_path))[0]
+    base_filename = os.path.splitext(os.path.basename(chat_path))[0]
 
     # Construct the new filename for the segments JSON
-    segments_json_filename = f"{base_filename}chatsegments.json"
+    segments_json_filename = f"{base_filename}segments.json"
 
     return os.path.join(chat_segments_dir, segments_json_filename)
 
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python videoProcessor.py <video_path> <config_path>")
+    if len(sys.argv) != 4:
+        print("Usage: python videoProcessor.py <video_path> <config_path> <chat_path>")
         sys.exit(1)
 
     video_path = sys.argv[1]
-    timeframes_json = construct_segments_json_path(video_path)
+    chat_path = sys.argv[3]
+    timeframes_json = construct_segments_json_path(chat_path)
     config_path = sys.argv[2]
 
     make_clips(video_path, timeframes_json, config_path)
