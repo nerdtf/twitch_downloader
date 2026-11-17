@@ -3,6 +3,10 @@
 Branching: `mac-setup` is the integration branch (from `ubuntu_setup`). Each milestone gets
 `mN-<name>` branched from `mac-setup`. Status: ⬜ todo · 🟨 in progress · ✅ done.
 
+**Priority (2026-11-18):** GTA VI launches 2026-11-19 and the owner posts *live*. Order is now
+M1 → M2 (live, with a raw-cut Telegram alert = usable MVP) → M4 → M3 → M5 → M6 → M7 (Pi).
+Fast and working beats future-proof; refactor after launch week.
+
 Package layout target: `clipper/` (Python 3.12, uv, ruff, pytest). Config in `config/*.yaml`.
 One SQLite DB (`data/clipper.db`, WAL) for streams, segments, chat, candidates, labels.
 
@@ -11,14 +15,14 @@ One SQLite DB (`data/clipper.db`, WAL) for streams, segments, chat, candidates, 
 ## M0 — Repo hygiene 🟨
 - ✅ Secrets out of code → `.env` / `.env.example`; `.gitignore` rewritten (old `*/*` rule hid everything).
 - ✅ Claude settings moved to `.claude/settings.json`; commit-format rule in CLAUDE.md.
-- ⬜ `pyproject.toml` (uv, py3.12), ruff config, `tests/` with one smoke test, `uv run pytest` green.
+- ✅ `pyproject.toml` (uv, py3.12), ruff config, `tests/`, `uv run pytest` green.
 - ⬜ Delete dead code once M1 replaces it (see "Delete" in DECISIONS.md).
 
 **Needs from owner:** new Twitch app client id/secret (config.txt is lost) → `.env`.
 
 ---
 
-## M1 — Recorder v2 ⬜
+## M1 — Recorder v2 🟨 (branch `m1-recorder`)
 **Files**
 - `clipper/config.py` + `config/streamers.yaml` (login, quality, program, enabled, TTL override)
 - `clipper/twitch_api.py` — Helix: app token, users, streams, clips (port of `twitch.py` + `utils.get_app_access_token`)
@@ -42,17 +46,24 @@ TTL on a temp dir (pinned files survive); chat→video offset mapping; config va
 - Chat/video alignment error measured on one known event (e.g. a raid) < 2 s.
 - launchd plist delivered but **not installed** until owner says so.
 
-**Needs from owner:** where the recorder runs (Pi vs Mac — Q1), disk budget + TTL hours, streamer list.
+**Decided:** Mac for now (Pi in a few days → M7). Live check via streamlink itself, so no Twitch
+API keys are needed to record. Helix (metadata, viewer clips) moves to M2.
+**Needs from owner:** the 4–5 streamer logins; free disk (see DECISIONS for GB/hour).
 
 ---
 
-## M2 — Stage-1 scorer + eval harness ⬜
-Harness first, scorer second.
+## M2 — Stage-1 scorer (live) + eval harness ⬜
+Runs **during the stream** every ~60 s over the last minutes of chat/audio. MVP output: Telegram
+alert with streamer, time, score breakdown and a raw 16:9 cut (`-c copy` from segments) so the
+owner can post immediately, before M4 exists. Harness and VOD fetcher come first.
 
 **Files**
 - `clipper/eval/gold.py` — loader for `data/gold/<stream_id>.csv` (start_sec,end_sec,label,note)
 - `clipper/eval/__main__.py` — recall of gold-good in top-40, precision@10 per stream-day; held-out day
-- `clipper/tools/fetch_vod.py` — download past VOD + chat replay (for dev data before live recordings pile up)
+- `clipper/tools/fetch_vod.py` — past VOD (streamlink, time ranges) + chat replay → same DB/segment
+  layout as live recordings, so scorer and eval don't care where data came from
+- `clipper/twitch_api.py` — Helix (needs client id/secret): stream title/game, viewer-made clips
+- `config/lexicon.yaml` — rebuilt from real chat: mine frequent tokens in high-rate windows vs baseline
 - `clipper/features/chat.py` — rate z-score vs 10-min rolling baseline, laugh/emote density
   (`config/lexicon.yaml`, ru/uk/en), unique-chatter ratio, copypasta + sub/raid/giveaway penalties
 - `clipper/features/audio.py` — per-second loudness via ffmpeg `ebur128`, jump vs 30 s baseline
@@ -134,3 +145,10 @@ before program submission deadline), `clipper/learn/` (dataset export, P(approve
 once ≥300 labels and compared to hand weights on the gold set.
 
 **Needs from owner:** consistent logging of posted URLs and view counts; program age limits.
+
+---
+
+## M7 — Migrate recorder to Raspberry Pi ⬜
+Recorder runs on the Pi (systemd instead of launchd); segments + DB synced or served to the Mac,
+which keeps Whisper/LLM/render. Prereq: Pi available, external disk, Pi OS 64-bit, uv.
+**Needs from owner:** the Pi, disk, network setup.

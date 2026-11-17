@@ -7,6 +7,10 @@ vertical videos with subtitles, and puts them in a review queue. A human (the ow
 and posts manually. You (the agent) never post anything.
 
 ## Business goal (the reason every decision is made)
+**Timing:** GTA VI launches 2026-11-19. Being fast and working beats being future-proof right now.
+**Posting is live:** the owner posts while the stream is still going, so the pipeline must surface
+candidates within minutes of the moment (stage-1 every ~1–5 min, stage-2 right after), not next day.
+
 Net ≥ $500/month after costs (APIs, subscriptions). Money comes from streamer-run clip bounty
 programs that pay per clip once it crosses view milestones. **A clip under 100k views pays $0.**
 So the pipeline optimises for "can this cross 100k views?", not "is this mildly funny?".
@@ -24,8 +28,12 @@ Program rules that are HARD GATES in the pipeline:
 English-speaking streamers may be added later; treat them as config entries, not code changes.
 
 ## Hardware and environment
-- MacBook / Mac with M4 Pro, 16 GB RAM, macOS. Apple Silicon: prefer MLX / whisper.cpp / Metal paths.
-  The LLM "judge" runs through a paid API (cheap model), not locally.
+- **Now (temporary):** MacBook Pro M3 Pro, 18 GB RAM, macOS 26, ~160 GB free. Apple Silicon: prefer
+  MLX / whisper.cpp / VideoToolbox. Laptop caveat: keep it on power with the lid open.
+- **Soon:** recorder migrates to a Raspberry Pi (owner will provide). Keep the recorder free of
+  Mac-only dependencies so it can move; heavy stages (Whisper, render) may stay on the Mac.
+- The LLM "judge" runs through a paid API — **Kimi (Moonshot) or DeepSeek** (OpenAI-compatible),
+  not locally. Russian/Ukrainian transcripts may be sent to it (owner approved).
 - Recording runs as a background service (launchd), not inside an agent session. Use
   `caffeinate` so the machine does not sleep.
 
@@ -71,7 +79,8 @@ Score = 100 × (0.30·Chat + 0.25·Audio + 0.35·Content + 0.10·Visual) × Agre
 - Content (LLM judge, JSON): humor, intensity, standalone_clarity, setup_payoff, streamer_is_main,
   banned_topic, hook_line, best_start, best_end, category, title/caption draft.
 - Agreement multiplier: ≥2 independent families above threshold → 1.0, else 0.6.
-- Global priority = score × streamer_value (payout tiers, program active, recent hit rate).
+- No per-streamer value weighting (owner decision: TikTok views are unpredictable, payout tier says
+  nothing about a clip's chances). Rank candidates on the moment itself.
 - Daily cap: top N overall (default 12) with a minimum score. A dull day yields fewer clips.
 Weights are initial guesses. Replace them with a learned model once ≥300 labels exist.
 
@@ -108,6 +117,7 @@ precision@10 per stream-day and recall of gold moments in top-40 candidates.
 ## Commands (keep this section current)
 - `uv run pytest` — tests
 - `uv run ruff check . && uv run ruff format .` — lint/format
-- `uv run python -m clipper.record --config config/streamers.yaml` — recorder (TBD)
+- `uv run python -m clipper.record --config config/streamers.yaml` — recorder (`--duration N` for a test run)
+- `deploy/install_recorder.sh` — install recorder as launchd agent (owner runs it)
 - `uv run python -m clipper.score --vod <path>` — score a local recording (TBD)
 - `uv run python -m clipper.eval` — metrics on the gold set (TBD)

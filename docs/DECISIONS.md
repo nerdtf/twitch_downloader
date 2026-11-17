@@ -2,6 +2,25 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-18
+- **Speed over future-proofing** until after GTA VI launch week (launch 2026-11-19).
+- **Live posting** → stage-1 runs during the stream; first deliverable is a Telegram alert + raw cut.
+- **No streamer_value weighting** (owner): views are unpredictable; ranking uses the moment only.
+- **LLM judge: Kimi or DeepSeek** via OpenAI-compatible API; ru/uk transcripts may be sent.
+- **Recorder on the Mac now, Pi later (M7).** Recorder code avoids Mac-only deps; `st_birthtime`
+  is used when present, filename (UTC, 1 s) otherwise.
+- **Live detection without API keys:** just try to open the stream with streamlink (offline exits in
+  ~2 s). Helix only adds metadata/viewer clips.
+- **Time anchoring:** each segment's start = file birth time (sub-second, APFS). HLS latency adds a
+  roughly constant offset that the per-streamer chat-lag calibration absorbs. `--twitch-disable-ads`
+  is on; ad breaks are parsed from streamlink's log into `events` so the gap is known.
+- **Retention:** per-streamer TTL (default 12 h — with live posting, older raw video is rarely used)
+  plus a disk guard deleting oldest *unpinned* segments when free space < `min_free_gb` (25).
+  `clipper/record/ttl.py` is the only code that deletes recordings; refuses paths outside data_dir.
+- **Chat is recorded continuously** (not only while live) — it's tiny and catches pre-stream hype.
+- **Twitch portrait renditions exist** (e.g. `1280p60_portrait`): default quality list prefers
+  landscape 1080p60; evaluate portrait feeds for M4 where a streamer offers them.
+
 ## 2026-11-17
 - **Base branch `mac-setup` from `ubuntu_setup`.** It is the newest code, what ran on the Pi, and the
   only branch containing `chatProcessing/chatProcessor.py`. `docker-version` was a Windows-only attempt.
