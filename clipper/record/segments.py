@@ -55,6 +55,8 @@ def parse_ad_line(line: str) -> dict | None:
     m = AD_RE.search(line)
     if m:
         return {"duration": float(m.group(1)), "message": line.strip()}
+    if "Will skip ad segments" in line:  # startup notice, not an actual break
+        return None
     if AD_HINT_RE.search(line) and "[plugins.twitch]" in line:
         return {"duration": None, "message": line.strip()}
     return None

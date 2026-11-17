@@ -29,7 +29,6 @@ def streamlink_cmd(s: Streamer) -> list[str]:
         sys.executable, "-m", "streamlink_cli",
         "--stdout",
         "--loglevel", "info",
-        "--twitch-disable-ads",
         "--twitch-low-latency",
         "--stream-segment-threads", "2",
         "--retry-open", "1",

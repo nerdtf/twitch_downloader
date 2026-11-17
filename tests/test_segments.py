@@ -49,3 +49,4 @@ def test_parse_ad_line():
     hint = parse_ad_line("[plugins.twitch][info] Waiting for pre-roll ads to finish, be patient")
     assert hint["duration"] is None
     assert parse_ad_line("[cli][info] Opening stream: 1080p60 (hls)") is None
+    assert parse_ad_line("[plugins.twitch][info] Will skip ad segments") is None

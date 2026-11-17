@@ -12,8 +12,13 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
 - **Live detection without API keys:** just try to open the stream with streamlink (offline exits in
   ~2 s). Helix only adds metadata/viewer clips.
 - **Time anchoring:** each segment's start = file birth time (sub-second, APFS). HLS latency adds a
-  roughly constant offset that the per-streamer chat-lag calibration absorbs. `--twitch-disable-ads`
-  is on; ad breaks are parsed from streamlink's log into `events` so the gap is known.
+  roughly constant offset that the per-streamer chat-lag calibration absorbs. streamlink 8 skips ads
+  by default (`--twitch-disable-ads` is deprecated); ad breaks are parsed from its log into `events`.
+  Smoke test: segment N+1 birth − (N start + duration) ≈ 0.02–0.3 s, except the first segment of a
+  recording, whose birth time is ~0.9 s late (ffmpeg probes input first). Fix in M2's time map:
+  anchor segment 1 as segment 2 start − segment 1 duration.
+- **Twitch serves fMP4 HLS now**; ffmpeg remuxes to MPEG-TS segments with `-c copy` (verified:
+  1080p60 H.264 + AAC, zero decode errors). Measured ~3.2–3.4 GB/hour/stream at 1080p60.
 - **Retention:** per-streamer TTL (default 12 h — with live posting, older raw video is rarely used)
   plus a disk guard deleting oldest *unpinned* segments when free space < `min_free_gb` (25).
   `clipper/record/ttl.py` is the only code that deletes recordings; refuses paths outside data_dir.
