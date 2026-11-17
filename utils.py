@@ -7,6 +7,8 @@ import json
 import requests
 from pathvalidate import sanitize_filename
 
+import env
+
 CONFIG_FILE = os.getcwd() + os.path.sep + 'config.txt'  # Location of config.txt config file.
 _APP_ACCESS_TOKEN = ''
 _APP_ACCESS_TOKEN_REFRESH_TIME = None
@@ -57,6 +59,8 @@ def _write_config():
 
 def get_client_id():
     global CONFIG
+    if env.get('TWITCH_CLIENT_ID'):
+        return env.get('TWITCH_CLIENT_ID')
     if not CONFIG:
         _read_config()
     if not CONFIG['client_id']:
@@ -73,6 +77,8 @@ def get_client_id():
 
 def get_client_secret():
     global CONFIG
+    if env.get('TWITCH_CLIENT_SECRET'):
+        return env.get('TWITCH_CLIENT_SECRET')
     if not CONFIG:
         _read_config()
     if not CONFIG['client_secret']:

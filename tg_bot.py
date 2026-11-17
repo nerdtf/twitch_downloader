@@ -1,20 +1,25 @@
 import requests
 
-TOKEN = "1015617928:AAFVLXthgF6p27dk8ieh5Wo2lteLJhP0po4"
-CHAT_ID = "@testtestphp"
+import env
+
 
 def send_tg(text, disable_notification=True):
-    url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+    token = env.get("TELEGRAM_BOT_TOKEN")
+    chat_id = env.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        print(f"[tg disabled: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not set] {text}")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
-        'chat_id': CHAT_ID,
-        'text': f'`{text}`',
-        'parse_mode': 'Markdown',
-        'disable_notification': disable_notification
+        "chat_id": chat_id,
+        "text": f"`{text}`",
+        "parse_mode": "Markdown",
+        "disable_notification": disable_notification,
     }
-
-    response = requests.post(url, data=payload)
+    try:
+        response = requests.post(url, data=payload, timeout=10)
+    except requests.RequestException as e:
+        print(f"Telegram send failed: {e}")
+        return False
     return response.ok
-
-
-
-
