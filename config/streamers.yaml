@@ -1,0 +1,22 @@
+# Streamers to record. Add/remove entries here — no code changes needed.
+# login: Twitch login (lowercase, as in twitch.tv/<login>)
+# enabled: false keeps the entry but stops recording it
+# quality / ttl_hours: optional per-streamer overrides of `defaults`
+
+defaults:
+  quality: "1080p60,1080p,best"   # comma list = fallback order (streamlink syntax)
+  ttl_hours: 12                   # keep raw segments this long (live posting -> old video is stale)
+
+recorder:
+  data_dir: data/recordings
+  db_path: data/clipper.db
+  segment_seconds: 300
+  poll_seconds: 60                # how often to check offline streamers
+  min_free_gb: 25                 # disk guard: delete oldest unpinned segments below this
+  stall_seconds: 90               # restart pipeline if no bytes arrive for this long
+  ttl_check_seconds: 600
+
+streamers:
+  # TODO(owner): replace with the 4-5 program streamers
+  - login: example_streamer
+    enabled: false
