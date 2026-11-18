@@ -102,3 +102,9 @@ def test_lexicon_ignore_regex_and_reaction_swears():
     assert LEX.is_ignored("viewer", "ку")
     assert not LEX.is_ignored("viewer", "ку ахахах это жесть")
     assert LEX.classify("ахуеть")[1] and LEX.classify("ЕБААААТЬ")[1]
+
+
+def test_lexicon_w_chant_and_tech_talk():
+    assert LEX.classify("WW ͏")[1] and LEX.classify("wwww")[1]
+    assert not LEX.classify("wow ww nice")[0]
+    assert LEX.is_ignored("viewer", "сделай звук громче")

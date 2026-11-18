@@ -9,10 +9,7 @@ laugh:
     - '(?:х[ыи]){2,}'            # хыхы
     - '(?:х+е+){2,}'             # хехе
     - '\b(?:a?ha){2,}\b'         # haha, ahaha
-    - '\){3,}'                   # )))
     - '\b(?:ору+|орнул\w*|ору)\b'
-    - '\b(?:кек\w*|лол\w*|ржу\w*|ржака|угар\w*|рофл\w*)\b'
-    - '\b(?:lol|lmao|rofl|xd+|kek)\b'
   emotes: [KEKW, LUL, LULW, OMEGALUL, ICANT, KEKL, pepeLaugh, xdd, KEKWait, xddShrug, forsenLaughingAtYou]
   emoji: ["😂", "🤣", "💀", "😹"]
 
@@ -25,7 +22,10 @@ hype:
     # Mined 2026-11-18 from 305k live chat msgs: 1.7-1.9x more frequent at viewer-clip peaks.
     - '\b(?:ах[уи]е\w*|о[хx]уе\w*|пиз+дец\w*|е+б+а+т+ь|нихуя|нихера|охренеть|офигеть)\b'
     - '\bсу+ка+\b'
-  emotes: [PogChamp, Pog, POGGERS, PogU, monkaS, monkaW, WutFace, EZ, Clap, peepoClap]
+    - '^\s*w+[\s\u034f]*$'         # "W"/"Wwww" chant = win/hype (owner); \u034f = invisible filler
+  # Removed 2026-11-18 (no lift at viewer-clip peaks): кек/лол/ржу/угар/рофл, ))), lol/xd,
+  # PogChamp, WutFace.
+  emotes: [Pog, POGGERS, PogU, monkaS, monkaW, EZ, Clap, peepoClap]
   emoji: ["😱", "🔥", "😳"]
 
 ignore:
@@ -36,5 +36,7 @@ ignore:
   regex:
     - '\b(?:хочу|дайте|подарите|пс5?|ps5|плойк\w*|розыгрыш\w*|ролл\w*|рерол+\w*)\b'
     - '^\s*(?:ку|бб|привет\w*|здарова|дарова|hi)\s*$'
+    # Tech/settings talk (owner: not a moment) — 2x at peaks only because of settings fiddling.
+    - '\b(?:звук\w*|громче|тише|яркост\w*|синхр\w*|рассинхрон\w*|фпс|fps|лаг\w*|фриз\w*|рв[её]т|вертикальн\w*|настройк\w*)\b'
 
   command_prefix: "!"            # "!GTA6", "!tg" bot commands are not reactions
