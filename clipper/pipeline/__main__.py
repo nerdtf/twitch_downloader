@@ -7,6 +7,7 @@ Output: data/clips/pending/<login>/<id>/{clip.mp4,caption.txt,meta.json} + data/
 """
 
 import argparse
+import json
 import logging
 import time
 from datetime import UTC, datetime
@@ -14,7 +15,14 @@ from datetime import UTC, datetime
 from clipper.config import REPO_ROOT, load_config
 from clipper.judge.llm import LLMJudge
 from clipper.pipeline.produce import render_judged, write_index
-from clipper.pipeline.stage2 import insert_candidates, judge_candidates
+from clipper.pipeline.stage2 import (
+    CONTEXT_PRE,
+    DEFAULT_POST,
+    DEFAULT_PRE,
+    Judged,
+    insert_candidates,
+    judge_candidates,
+)
 from clipper.scoring.stage1 import load_scoring_config, stage1
 from clipper.sources import RecordingSource, VodSource
 from clipper.store import Store
@@ -49,12 +57,26 @@ def run_vod(args) -> None:
     print("review:", write_index())
 
 
-def _rendered_today(store: Store) -> int:
+def _rendered_today(store: Store, login: str) -> int:
+    """Clips already rendered today (UTC) for one streamer — the cap is per streamer so the first
+    stream of the day cannot use up everyone's quota."""
     day0 = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
     return store.conn.execute(
-        "SELECT COUNT(*) FROM candidates WHERE status IN ('rendered','approved','rejected') AND created_epoch>=?",
-        (day0,),
+        "SELECT COUNT(*) FROM candidates WHERE login=? AND status IN ('rendered','approved','rejected')"
+        " AND created_epoch>=?",
+        (login, day0),
     ).fetchone()[0]
+
+
+def _may_render(store: Store, login: str, score: float, args) -> bool:
+    if score < args.render_min:
+        return False
+    if _rendered_today(store, login) >= args.daily_cap:
+        log.info(
+            "daily cap %d reached for %s, not rendering score=%.1f", args.daily_cap, login, score
+        )
+        return False
+    return True
 
 
 def run_live(args) -> None:
@@ -70,8 +92,9 @@ def run_live(args) -> None:
         helix, user_ids = None, {}
     last_clip_poll: dict[int, float] = {}
     log.info(
-        "live pipeline started (min_score=%.2f, daily_cap=%d, llm=%s)",
+        "live pipeline started (min_score=%.2f, render_min=%.0f, daily_cap=%d/streamer, llm=%s)",
         args.min_score,
+        args.render_min,
         args.daily_cap,
         "on" if judge else "off",
     )
@@ -122,9 +145,41 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
         return
     ids = insert_candidates(store, src, fresh)
     for j in judge_candidates(store, src, fresh, ids, judge):
-        if j.passed and _rendered_today(store) < args.daily_cap:
+        if j.passed and _may_render(store, src.login, j.score, args):
             out = render_judged(store, src, j)
             log.info("NEW CLIP %s score=%.1f -> %s", src.login, j.score, out)
+
+
+def run_backfill(args) -> None:
+    """Render the best judged-but-unrendered candidates of recordings still on disk (e.g. after
+    the cap blocked them). Respects --render-min and the per-streamer --daily-cap."""
+    store = Store(DB)
+    rows = store.conn.execute(
+        "SELECT * FROM candidates WHERE status='judged' AND source LIKE 'rec:%' AND final_score>=?"
+        " ORDER BY final_score DESC",
+        (args.render_min,),
+    ).fetchall()
+    for r in rows:
+        if args.login and r["login"] not in args.login:
+            continue
+        if not _may_render(store, r["login"], r["final_score"], args):
+            continue
+        src = RecordingSource(store, int(r["source"].split(":")[1]))
+        st2 = json.loads(r["stage2"] or "{}")
+        jd = st2.get("judgement") or None
+        start, end = r["event_epoch"] - DEFAULT_PRE, r["event_epoch"] + DEFAULT_POST
+        if jd and 0 <= float(jd["best_start"]) < float(jd["best_end"]):
+            a = r["event_epoch"] - CONTEXT_PRE
+            start, end = a + float(jd["best_start"]), a + float(jd["best_end"])
+        j = Judged(
+            r["id"], r["event_epoch"], start, end, r["final_score"], True, None, jd,
+            st2.get("transcript", ""), json.loads(r["features"]).get("families", {}),
+        )  # fmt: skip
+        try:
+            print("rendered", render_judged(store, src, j), f"score={j.score}", flush=True)
+        except Exception as e:  # segment expired by TTL, etc.
+            log.error("backfill render failed for candidate %s: %s", r["id"], e)
+    print("review:", write_index())
 
 
 def main() -> None:
@@ -144,12 +199,15 @@ def main() -> None:
         "--lookback", type=float, default=1200, help="seconds of stream scored each pass"
     )
     lv.add_argument("--min-score", type=float, default=0.35)
-    lv.add_argument("--daily-cap", type=int, default=12)
+    for sp in (lv, bf := sub.add_parser("backfill")):
+        sp.add_argument("--daily-cap", type=int, default=6, help="max clips per streamer per day")
+        sp.add_argument("--render-min", type=float, default=50, help="min final score to render")
+    bf.add_argument("--login", nargs="*", help="only these streamers")
     args = ap.parse_args()
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
-    run_vod(args) if args.cmd == "vod" else run_live(args)
+    {"vod": run_vod, "live": run_live, "backfill": run_backfill}[args.cmd](args)
 
 
 if __name__ == "__main__":
