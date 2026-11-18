@@ -33,7 +33,7 @@ calibration; laughter/shout detector (PANNs) if audio stays weak; lexicon mining
 Done: mlx-whisper large-v3-turbo (~10× realtime) with word timestamps + cache; LLM judge
 (OpenAI-compatible, strict JSON, retry, cache, USD cap); gates (banned topic, streamer not main,
 dead air, clarity, overlap, program window); final score. Falls back to "unjudged" without LLM.
-**Blocked:** `LLM_API_KEY` returns 401 (owner: run `uv run python -m clipper.judge.llm --check`) on api.moonshot.ai and api.moonshot.cn. Owner: check key /
+LLM key works (2026-11-18) but the judge is **off by default** (`--llm`) until chat-picked clips are reviewed. on api.moonshot.ai and api.moonshot.cn. Owner: check key /
 set `LLM_BASE_URL` (e.g. OpenRouter or DeepSeek endpoint) and `LLM_MODEL`.
 
 ## M4 — Render 🟨

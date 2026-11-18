@@ -33,14 +33,17 @@ log = logging.getLogger("clipper.pipeline")
 DB = REPO_ROOT / "data/clipper.db"
 
 
-def make_judge(store: Store, budget: float) -> LLMJudge | None:
-    j = LLMJudge(store, budget_usd=budget)
+def make_judge(store: Store, args) -> LLMJudge | None:
+    """Off unless --llm (owner 2026-11-18: see chat-picked clips first, add the LLM later)."""
+    if not getattr(args, "llm", False):
+        return None
+    j = LLMJudge(store, budget_usd=args.budget)
     return j if j.api_key else None
 
 
 def run_vod(args) -> None:
     store, cfg = Store(DB), load_scoring_config()
-    judge = make_judge(store, args.budget)
+    judge = make_judge(store, args)
     for vid in args.vod_ids:
         src = VodSource(store, vid)
         cands = stage1(src.signals(with_clips=False), cfg, k=args.judge)
@@ -71,7 +74,7 @@ def _rendered_today(store: Store, login: str) -> int:
 def _may_render(store: Store, login: str, score: float, args) -> bool:
     if score < args.render_min:
         return False
-    if _rendered_today(store, login) >= args.daily_cap:
+    if args.daily_cap and _rendered_today(store, login) >= args.daily_cap:
         log.info(
             "daily cap %d reached for %s, not rendering score=%.1f", args.daily_cap, login, score
         )
@@ -82,7 +85,7 @@ def _may_render(store: Store, login: str, score: float, args) -> bool:
 def run_live(args) -> None:
     rec_cfg = load_config(args.config)
     store, cfg = Store(DB), load_scoring_config()
-    judge = make_judge(store, args.budget)
+    judge = make_judge(store, args)
     try:
         helix = HelixClient.from_env()
         user_ids = {
@@ -92,7 +95,7 @@ def run_live(args) -> None:
         helix, user_ids = None, {}
     last_clip_poll: dict[int, float] = {}
     log.info(
-        "live pipeline started (min_score=%.2f, render_min=%.0f, daily_cap=%d/streamer, llm=%s)",
+        "live pipeline started (min_score=%.2f, render_min=%.0f, daily_cap=%d/streamer (0=none), llm=%s)",
         args.min_score,
         args.render_min,
         args.daily_cap,
@@ -125,8 +128,11 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
     sig = src.signals(with_clips=True, t_from=t_from, t_to=now - 5)
     if sig.n < 120:
         return
+    warm = src.t0 + cfg.get("warmup_seconds", 0)
     settled = [
-        c for c in stage1(sig, cfg, k=10) if sig.t0 + c.t <= now - 45 and c.score >= args.min_score
+        c
+        for c in stage1(sig, cfg, k=10)
+        if warm <= sig.t0 + c.t <= now - 45 and c.score >= args.min_score
     ]
     fresh = []
     for c in settled:
@@ -187,6 +193,7 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--budget", type=float, default=2.0, help="total LLM spend cap in USD")
+    ap.add_argument("--llm", action="store_true", help="use the LLM judge (off by default for now)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("vod")
     v.add_argument("vod_ids", nargs="+")
@@ -200,8 +207,10 @@ def main() -> None:
     )
     lv.add_argument("--min-score", type=float, default=0.35)
     for sp in (lv, bf := sub.add_parser("backfill")):
-        sp.add_argument("--daily-cap", type=int, default=6, help="max clips per streamer per day")
-        sp.add_argument("--render-min", type=float, default=50, help="min final score to render")
+        sp.add_argument(
+            "--daily-cap", type=int, default=0, help="max clips/streamer/day, 0 = no limit"
+        )
+        sp.add_argument("--render-min", type=float, default=0, help="min final score to render")
     bf.add_argument("--login", nargs="*", help="only these streamers")
     args = ap.parse_args()
     logging.basicConfig(

@@ -108,3 +108,15 @@ def test_lexicon_w_chant_and_tech_talk():
     assert LEX.classify("WW ͏")[1] and LEX.classify("wwww")[1]
     assert not LEX.classify("wow ww nice")[0]
     assert LEX.is_ignored("viewer", "сделай звук громче")
+
+
+def test_chat_laugh_beats_loud_but_quiet_chat():
+    """Owner: chat decides what is funny — a loud moment chat ignores ranks below a laugh burst."""
+    n = 1800
+    chat = chat_signals(synthetic_chat(n, burst_at=600), 1000, 1000 + n, LEX)
+    audio = np.full(n, -30.0, np.float32)
+    audio[1198:1206] = -5.0  # very loud, but chat does not react
+    cands = stage1(Signals(t0=1000, n=n, audio_db=audio, chat=chat), CFG, k=5)
+    assert abs(cands[0].t - 600) <= 6
+    loud = [c for c in cands if abs(c.t - 1200) <= 6]
+    assert not loud or loud[0].score < cands[0].score / 2

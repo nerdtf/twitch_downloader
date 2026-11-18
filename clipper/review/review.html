@@ -83,8 +83,8 @@ const FAMILY_HELP = {
   audio: "loudness jump",
   clips: "viewer-made Twitch clips",
 };
-const REJECT = ["не смешно", "нет контекста", "стример не главный", "плохая обрезка", "скучно / тихо", "политика / драма", "реклама / розыгрыш"];
-const APPROVE = ["смешно", "сильная реакция", "хороший хук", "эпичный момент"];
+const REJECT = ["not funny", "no context", "streamer not main", "bad crop / timing", "boring / quiet", "chat not laughing", "stream start / tech issue", "politics / drama", "ads / giveaway"];
+const APPROVE = ["funny", "strong reaction", "good hook", "epic moment", "funny only in part (trim)"];
 const CHAT_LAG = 6; // chat reacts ~6 s after the moment
 let clips = [];
 
@@ -167,7 +167,7 @@ function card(c) {
 
   mid.append($("h3", null, "Your decision"));
   const note = document.createElement("textarea");
-  note.placeholder = "Why? (required) — e.g. смешно, сильная реакция / не смешно, нет контекста…";
+  note.placeholder = "Why? (required) — click reasons below or type your own";
   const chips = $("div", "chips");
   const addChip = (text, kind) => {
     const ch = $("span", "chip", (kind === "ok" ? "👍 " : "👎 ") + text);

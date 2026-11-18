@@ -2,6 +2,16 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-18 (evening, after the first owner review: ~80% of clips rejected)
+- **Chat decides what is funny.** Laugh words get half the weight; hype/W, message rate and viewer
+  clips 0.15 each; loudness 0.05 (tiebreaker). Moments where chat does not laugh are multiplied
+  by 0.6 (hype only) or 0.35 (no reaction). On 14 owner labels: AUC 0.69 -> 0.81 (small sample).
+- **No candidates in the first 5 min of a recording** — "stream started" hype was rejected.
+- **LLM judge off by default** (`--llm` to enable): owner wants to see chat-picked clips first.
+- **No daily cap, no render threshold** beyond stage-1 `min_score`: owner reviews regularly.
+- **Review queue is live-only**; practice clips from past broadcasts go to `data/clips/practice/`.
+- **Layout `auto`**: split (webcam on top) when a face is found in the webcam box, else fit_blur.
+
 ## 2026-11-18 (overnight, autonomous session)
 - **Helix hybrid** (owner asked to use Helix): live check every 15 s + keyless open-attempt fallback.
 - **Chat only while recording** (owner): IRC stays connected, offline chat discarded.

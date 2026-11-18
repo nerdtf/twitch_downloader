@@ -58,9 +58,15 @@ def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
     out: dict[str, np.ndarray] = {}
     if sig.chat is not None:
         rate = tl.shift(tl.forward_sum(sig.chat.msgs, w), lag)
-        react = tl.shift(tl.forward_sum(sig.chat.laugh + sig.chat.hype, w), lag)
         out["chat"] = tl.robust_z(rate, base, floor=2.0)
-        out["laugh"] = tl.robust_z(react, base, floor=1.0)
+        if "hype" in cfg["weights"]:  # laugh (funny) and hype (wow/W spam) scored separately
+            laugh = tl.shift(tl.forward_sum(sig.chat.laugh, w), lag)
+            hype = tl.shift(tl.forward_sum(sig.chat.hype, w), lag)
+            out["laugh"] = tl.robust_z(laugh, base, floor=1.0)
+            out["hype"] = tl.robust_z(hype, base, floor=1.0)
+        else:
+            react = tl.shift(tl.forward_sum(sig.chat.laugh + sig.chat.hype, w), lag)
+            out["laugh"] = tl.robust_z(react, base, floor=1.0)
     if sig.audio_db is not None:
         db = np.nan_to_num(sig.audio_db.astype(np.float32), nan=-90.0)
         peak = tl.forward_max(db, cfg["audio_window_seconds"])
@@ -95,10 +101,19 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
         norm[f] = v / cap
     score = sum(weights[f] * norm[f] for f in fam) / total_w
 
+    gate = cfg.get("reaction_gate")
+    if gate and "laugh" in fam:
+        # Owner (2026-11-18): chat decides whether a moment is funny. Without a chat laugh (or at
+        # least a hype) reaction a moment is down-ranked no matter how loud it is.
+        laugh_fires = fam["laugh"] >= thr
+        hype_fires = fam["hype"] >= thr if "hype" in fam else np.zeros(sig.n, bool)
+        score = score * np.where(
+            laugh_fires, 1.0, np.where(hype_fires, gate["hype_only"], gate["no_reaction"])
+        )
     # Agreement: chat+laugh are one family; count independent families that fire.
-    groups = {"chat": ("chat", "laugh"), "audio": ("audio",), "clips": ("clips",)}
+    groups = {"chat": ("chat", "laugh", "hype"), "audio": ("audio",), "clips": ("clips",)}
     present = [g for g, members in groups.items() if any(m in fam for m in members)]
-    if len(present) >= 2:
+    if len(present) >= 2 and not gate:
         fired_n = np.zeros(sig.n, np.int32)
         for g in present:
             fires = np.zeros(sig.n, bool)
