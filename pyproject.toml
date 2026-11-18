@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Record Twitch streams, find clip-worthy moments, render vertical clips for review."
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "mlx-whisper>=0.4.3",
+    "numpy>=2.5.5",
     "pyyaml>=6.0",
     "requests>=2.32",
     "streamlink>=8.0",
@@ -29,6 +31,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120  # formatter wraps code at 100; long SQL/string literals may go to 120
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]  # long literal fixtures (IRC lines, API payloads) read better unwrapped

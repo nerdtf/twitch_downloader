@@ -1,0 +1,29 @@
+# Stage-1 scoring (cheap, every stream second). Weights are initial guesses (see CLAUDE.md);
+# tune only against gold/weak-gold with a held-out stream (python -m clipper.eval).
+
+window_seconds: 10            # reaction window for chat counts
+baseline_seconds: 600         # rolling baseline for z-scores (10 min)
+chat_lag_seconds: 6           # chat reacts this long after the event (calibrated per streamer later)
+audio_window_seconds: 5       # loudness peak window
+audio_baseline_seconds: 30    # loudness baseline before the peak
+z_cap: 6.0                    # z-scores above this count as "maximal"
+family_threshold_z: 2.0       # a family "fires" above this z
+agreement_single_family: 0.6  # multiplier when only one family fires (CLAUDE.md)
+
+weights:                      # relative; normalised over the families available for a source
+  chat: 0.30
+  laugh: 0.25                 # part of the chat family for agreement purposes
+  audio: 0.25
+  clips: 0.20                 # viewer-made Twitch clips (disabled in eval against clip gold)
+
+penalties:
+  copypasta_share: 0.5        # top identical message share above this -> penalty
+  copypasta_penalty: 0.3
+  notices_per_window: 5       # sub/raid bursts above this -> penalty
+  notices_penalty: 0.2
+
+peaks:
+  smooth_seconds: 3
+  min_gap_seconds: 90         # overlap gate: keep the higher of two peaks closer than this
+  pre_roll_seconds: 25        # candidate window = [event - pre, event + post]
+  post_roll_seconds: 12

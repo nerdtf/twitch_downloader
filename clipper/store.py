@@ -54,6 +54,82 @@ CREATE TABLE IF NOT EXISTS events (
     data   TEXT
 );
 CREATE INDEX IF NOT EXISTS events_login_epoch ON events(login, epoch);
+
+-- Past broadcasts downloaded for practice/eval (audio-only; video fetched per window)
+CREATE TABLE IF NOT EXISTS vods (
+    id            TEXT PRIMARY KEY,   -- Twitch video id
+    login         TEXT NOT NULL,
+    user_id       TEXT NOT NULL,
+    created_epoch REAL NOT NULL,      -- VOD offset 0 == this wall-clock time
+    duration      REAL NOT NULL,
+    title         TEXT,
+    audio_path    TEXT
+);
+-- Viewer-made Twitch clips: a live feature and a weak "gold" label
+CREATE TABLE IF NOT EXISTS twitch_clips (
+    id            TEXT PRIMARY KEY,
+    login         TEXT NOT NULL,
+    video_id      TEXT,
+    vod_offset    REAL,
+    duration      REAL NOT NULL,
+    view_count    INTEGER NOT NULL,
+    created_epoch REAL NOT NULL,
+    title         TEXT,
+    url           TEXT
+);
+CREATE INDEX IF NOT EXISTS twitch_clips_login_created ON twitch_clips(login, created_epoch);
+-- Every detected moment, with all features and decisions (the learning-loop log)
+CREATE TABLE IF NOT EXISTS candidates (
+    id            INTEGER PRIMARY KEY,
+    source        TEXT NOT NULL,      -- "vod:<id>" | "rec:<recording id>"
+    login         TEXT NOT NULL,
+    event_epoch   REAL NOT NULL,
+    start_epoch   REAL NOT NULL,
+    end_epoch     REAL NOT NULL,
+    stage1        REAL NOT NULL,
+    features      TEXT NOT NULL,      -- JSON: per-family values at detection time
+    stage2        TEXT,               -- JSON: transcript + LLM judgement
+    final_score   REAL,
+    status        TEXT NOT NULL DEFAULT 'stage1',  -- stage1|dropped|rendered|approved|rejected
+    gate_reason   TEXT,
+    clip_dir      TEXT,
+    created_epoch REAL NOT NULL,
+    UNIQUE(source, event_epoch)
+);
+CREATE INDEX IF NOT EXISTS candidates_login_event ON candidates(login, event_epoch);
+CREATE TABLE IF NOT EXISTS llm_calls (
+    id                INTEGER PRIMARY KEY,
+    epoch             REAL NOT NULL,
+    model             TEXT NOT NULL,
+    candidate_id      INTEGER,
+    prompt_tokens     INTEGER,
+    completion_tokens INTEGER,
+    cost_usd          REAL,
+    ok                INTEGER NOT NULL,
+    cache_key         TEXT,
+    response          TEXT
+);
+CREATE INDEX IF NOT EXISTS llm_calls_cache ON llm_calls(cache_key);
+-- Owner decisions and outcomes
+CREATE TABLE IF NOT EXISTS labels (
+    candidate_id  INTEGER PRIMARY KEY REFERENCES candidates(id),
+    decision      TEXT NOT NULL,      -- approved | rejected
+    reason        TEXT,
+    epoch         REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS posts (
+    id            INTEGER PRIMARY KEY,
+    candidate_id  INTEGER NOT NULL REFERENCES candidates(id),
+    platform      TEXT NOT NULL,      -- tiktok | shorts | reels
+    url           TEXT NOT NULL UNIQUE,
+    posted_epoch  REAL NOT NULL,
+    submitted_epoch REAL              -- when submitted to the bounty program
+);
+CREATE TABLE IF NOT EXISTS view_snapshots (
+    post_id       INTEGER NOT NULL REFERENCES posts(id),
+    epoch         REAL NOT NULL,
+    views         INTEGER NOT NULL
+);
 """
 
 MIGRATIONS: dict[str, list[tuple[str, str]]] = {

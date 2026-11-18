@@ -1,0 +1,30 @@
+# Chat lexicon used by stage-1 scoring. Case-insensitive. Edit freely — no code changes needed.
+# Started from the old chatProcessor keywords (ахах, уфф, pog, wow, lul, lol, xdd, clip, клип) with
+# its bugs fixed (missing comma; laughter regex matched common words like «за»).
+# Will be refined from real recorded chat (frequent tokens in spikes vs. baseline).
+
+laugh:
+  regex:
+    - '(?:а?х[аa]){2,}'          # ахах, хаха, ахахах (cyrillic/latin a)
+    - '(?:х[ыи]){2,}'            # хыхы
+    - '(?:х+е+){2,}'             # хехе
+    - '\b(?:a?ha){2,}\b'         # haha, ahaha
+    - '\){3,}'                   # )))
+    - '\b(?:ору+|орнул\w*|ору)\b'
+    - '\b(?:кек\w*|лол\w*|ржу\w*|ржака|угар\w*|рофл\w*)\b'
+    - '\b(?:lol|lmao|rofl|xd+|kek)\b'
+  emotes: [KEKW, LUL, LULW, OMEGALUL, ICANT, KEKL, pepeLaugh, xdd, KEKWait, xddShrug, forsenLaughingAtYou]
+  emoji: ["😂", "🤣", "💀", "😹"]
+
+hype:
+  regex:
+    - '\b(?:вау+|ого+|о+фиге\w*|жест\w*|имба\w*|капец|пипец|ахренеть|нифига)\b'
+    - '\b(?:уф+|у+ф+)\b'         # уфф
+    - '\b(?:pog\w*|wow|omg|holy)\b'
+    - '\b(?:клип\w*|clip\w*)\b'  # viewers asking for a clip = strong signal
+  emotes: [PogChamp, Pog, POGGERS, PogU, monkaS, monkaW, WutFace, EZ, Clap, peepoClap]
+  emoji: ["😱", "🔥", "😳"]
+
+ignore:
+  users: [nightbot, moobot, streamelements, streamlabs, fossabot, wizebot, sery_bot, botrixoficial]
+  command_prefix: "!"            # "!GTA6", "!tg" bot commands are not reactions

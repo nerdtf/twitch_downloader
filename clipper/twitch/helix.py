@@ -41,7 +41,9 @@ class Clip:
     id: str
     broadcaster_id: str
     video_id: str | None
-    vod_offset: int | None  # seconds into the VOD where the clip starts
+    vod_offset: (
+        int | None
+    )  # seconds into the VOD where the clip ENDS (Twitch docs say start; verified)
     duration: float
     view_count: int
     created_at: str

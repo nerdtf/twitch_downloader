@@ -1,0 +1,12 @@
+# Evaluation set. Sources are "vod:<twitch video id>" or "rec:<recording id>".
+# holdout: never used for tuning — report it separately.
+train:
+  - vod:2931500004   # buster, latest
+  - vod:2924909114   # buster, 6th back
+  - vod:2931390445   # shadowkekw
+  - vod:2930458946   # skillz0r1337
+  - vod:2930491987   # dangerlyoha (not a program streamer; practice only)
+  - vod:2931327685   # zloyn
+  - vod:2931315641   # mokrivskyi
+holdout:
+  - vod:2916775470   # buster, 12th back
