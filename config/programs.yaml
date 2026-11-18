@@ -1,0 +1,17 @@
+# Bounty programs per streamer. TODO(owner): fill names, hashtags, windows and extra rules.
+# Hard gates from CLAUDE.md apply to every program; `extra_rules` are added to the LLM prompt.
+defaults:
+  required_hashtags: []           # e.g. ["#buster"] — added to every caption
+  caption_line: "Twitch: twitch.tv/{login}"
+  window_days: 7                  # only moments from streams newer than this
+  submit_within_days: 7           # remind to submit before this age
+  extra_rules: []
+
+streamers:
+  buster:
+    program: "TODO"
+    extra_rules:
+      - "Betting sponsor content (Winline etc.) may be rejected: avoid clips centred on betting/ads."
+  evelone2004: {program: "TODO"}
+  zloyn: {program: "TODO"}
+  mokrivskyi: {program: "TODO"}

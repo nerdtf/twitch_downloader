@@ -1,0 +1,31 @@
+# Vertical (1080x1920) layouts per streamer. Coordinates are in the 1920x1080 source frame:
+# [x, y, width, height]. Measured from VOD frames on 2026-11-18 — owner: please verify.
+#
+# layout:
+#   fit_blur  - whole 16:9 frame in the middle, blurred zoomed copy as background. Safe for any
+#               scene (IRL, game shows, two cams) — default.
+#   split     - facecam on top, content below. Better for TikTok, but only when the facecam is
+#               where `facecam` says (it moves between scenes, e.g. buster IRL has no facecam).
+# blur: rectangles blurred before cropping (sponsor/betting banners — required by programs).
+
+defaults:
+  layout: fit_blur
+  content_zoom: 1.0            # fit_blur: >1 zooms the middle frame (crops sides)
+  blur: []
+
+streamers:
+  buster:
+    facecam: [0, 0, 600, 338]          # desk scene
+    content: [600, 120, 1320, 900]     # browser/game area right of the cam
+    blur:
+      - [1690, 40, 225, 140]           # Winline badge (top right, desk scene)
+      - [1660, 290, 250, 75]           # "ссылка под стримом" sponsor plate
+      - [1680, 475, 220, 130]          # "предзаказ / купить билет" plate
+  zloyn:
+    facecam: [0, 0, 667, 375]
+    content: [667, 0, 1253, 1080]
+  mokrivskyi:
+    facecam: [0, 268, 432, 245]
+    blur:
+      - [25, 130, 330, 110]            # PARI betting logo
+  evelone2004: {}                      # game-show layouts vary -> fit_blur

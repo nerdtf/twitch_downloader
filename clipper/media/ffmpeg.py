@@ -11,10 +11,14 @@ FFMPEG = ["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-y"]
 FFPROBE = ["ffprobe", "-v", "error"]
 SILENCE_DB = -90.0
 _RMS_RE = re.compile(r"lavfi\.astats\.Overall\.RMS_level=(-?inf|-?\d+(?:\.\d+)?)")
-_LOUDNESS_FILTER = (
-    "aresample=8000,asetnsamples=n=8000:p=0,astats=metadata=1:reset=1,"
-    "ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-"
-)
+
+
+def _loudness_filter(block_seconds: float) -> str:
+    sr = 8000
+    return (
+        f"aresample={sr},asetnsamples=n={max(int(sr * block_seconds), 1)}:p=0,"
+        "astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-"
+    )
 
 
 class FFmpegError(RuntimeError):
@@ -53,13 +57,38 @@ def probe_video(path: Path) -> dict:
     }
 
 
-def loudness_series(path: Path, start: float = 0.0, duration: float | None = None) -> np.ndarray:
-    """RMS level in dBFS for each 1-second block of audio (silence -> SILENCE_DB)."""
+def loudness_series(
+    path: Path, start: float = 0.0, duration: float | None = None, block_seconds: float = 1.0
+) -> np.ndarray:
+    """RMS level in dBFS per block of audio (default 1 s; silence -> SILENCE_DB)."""
     pre, post = _seek(start, duration)
-    cmd = [*FFMPEG, *pre, "-i", str(path), *post, "-vn", "-ac", "1", "-af", _LOUDNESS_FILTER]
+    af = _loudness_filter(block_seconds)
+    cmd = [*FFMPEG, *pre, "-i", str(path), *post, "-vn", "-ac", "1", "-af", af]
     out = run([*cmd, "-f", "null", "-"]).stdout
     values = [SILENCE_DB if v.endswith("inf") else float(v) for v in _RMS_RE.findall(out)]
     return np.maximum(np.asarray(values, dtype=np.float32), SILENCE_DB)
+
+
+def align_offset(
+    clip: Path, reference: Path, ref_guess: float, search: float = 15.0, resolution: float = 0.02
+) -> float:
+    """Where (seconds in `reference`) does `clip` start? Cross-correlates loudness envelopes.
+
+    `ref_guess` is the expected start; the true one is searched within ±`search` seconds.
+    """
+    c = loudness_series(clip, duration=20.0, block_seconds=resolution)
+    lo = max(ref_guess - search, 0.0)
+    r = loudness_series(reference, start=lo, duration=2 * search + 20.0, block_seconds=resolution)
+    if len(c) < 50 or len(r) <= len(c):
+        return ref_guess
+    c = (c - c.mean()) / (c.std() + 1e-6)
+    best_k, best = 0, -np.inf
+    for k in range(len(r) - len(c)):
+        w = r[k : k + len(c)]
+        score = float(np.dot(c, (w - w.mean()) / (w.std() + 1e-6)))
+        if score > best:
+            best_k, best = k, score
+    return lo + best_k * resolution
 
 
 def extract_wav(src: Path, out: Path, start: float, duration: float, sr: int = 16000) -> Path:
