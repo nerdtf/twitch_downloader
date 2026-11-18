@@ -11,7 +11,11 @@ CREATE TABLE IF NOT EXISTS recordings (
     dir           TEXT NOT NULL,
     started_epoch REAL NOT NULL,
     ended_epoch   REAL,
-    exit_reason   TEXT
+    exit_reason   TEXT,
+    twitch_stream_id  TEXT,
+    title             TEXT,
+    game_name         TEXT,
+    stream_started_at TEXT
 );
 CREATE TABLE IF NOT EXISTS segments (
     id            INTEGER PRIMARY KEY,
@@ -52,10 +56,30 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_login_epoch ON events(login, epoch);
 """
 
+MIGRATIONS: dict[str, list[tuple[str, str]]] = {
+    "recordings": [
+        ("twitch_stream_id", "TEXT"),
+        ("title", "TEXT"),
+        ("game_name", "TEXT"),
+        ("stream_started_at", "TEXT"),
+    ],
+}
+
 CHAT_COLUMNS = (
-    "channel", "sent_ms", "recv_ms", "kind", "msg_id", "user_id", "login",
-    "display_name", "text", "emotes", "badges", "bits", "tags",
-)  # fmt: skip
+    "channel",
+    "sent_ms",
+    "recv_ms",
+    "kind",
+    "msg_id",
+    "user_id",
+    "login",
+    "display_name",
+    "text",
+    "emotes",
+    "badges",
+    "bits",
+    "tags",
+)
 
 
 class Store:
@@ -68,6 +92,15 @@ class Store:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self):
+        """Add columns introduced after a DB was created (idempotent)."""
+        for table, cols in MIGRATIONS.items():
+            have = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+            for name, decl in cols:
+                if name not in have:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
 
     def close(self):
         self.conn.close()
@@ -84,6 +117,15 @@ class Store:
         self.conn.execute(
             "UPDATE recordings SET ended_epoch=?, exit_reason=? WHERE id=?",
             (ended_epoch, reason, rec_id),
+        )
+
+    def update_recording_meta(
+        self, rec_id: int, stream_id: str, title: str, game_name: str, started_at: str
+    ):
+        self.conn.execute(
+            "UPDATE recordings SET twitch_stream_id=?, title=?, game_name=?, stream_started_at=?"
+            " WHERE id=?",
+            (stream_id, title, game_name, started_at, rec_id),
         )
 
     # --- segments ---

@@ -28,8 +28,11 @@ CLEARCHAT = (
 
 def test_tag_unescape():
     assert parse_tags(r"a=hello\sworld;b=semi\:colon;c=back\\slash;d=") == {
-        "a": "hello world", "b": "semi;colon", "c": "back\\slash", "d": "",
-    }  # fmt: skip
+        "a": "hello world",
+        "b": "semi;colon",
+        "c": "back\\slash",
+        "d": "",
+    }
 
 
 def test_privmsg_row():
@@ -48,8 +51,11 @@ def test_privmsg_row():
 def test_usernotice_resub_and_raid():
     sub = to_chat_row(parse_line(SUB), recv_ms=1)
     assert (sub["kind"], sub["msg_id"], sub["login"], sub["text"]) == (
-        "usernotice", "resub", "pete", "Great stream!",
-    )  # fmt: skip
+        "usernotice",
+        "resub",
+        "pete",
+        "Great stream!",
+    )
     raid = to_chat_row(parse_line(RAID), recv_ms=1)
     assert raid["msg_id"] == "raid" and raid["text"] is None
     assert '"msg-param-viewerCount": "1500"' in raid["tags"]

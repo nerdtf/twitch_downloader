@@ -16,7 +16,10 @@ def test_repo_config_loads():
 
 
 def test_defaults_overrides_and_disabled(tmp_path):
-    cfg = load_config(write(tmp_path, """
+    cfg = load_config(
+        write(
+            tmp_path,
+            """
 defaults: {quality: "720p60", ttl_hours: 6}
 recorder: {data_dir: rec}
 streamers:
@@ -24,7 +27,10 @@ streamers:
   - {login: beta, quality: best, ttl_hours: 48}
   - {login: gamma, enabled: false}
   - delta_1
-"""), base=tmp_path)  # fmt: skip
+""",
+        ),
+        base=tmp_path,
+    )
     assert [s.login for s in cfg.streamers] == ["alpha", "beta", "delta_1"]
     assert cfg.streamers[0].quality == "720p60" and cfg.streamers[0].ttl_hours == 6
     assert cfg.streamers[1].quality == "best" and cfg.streamers[1].ttl_hours == 48

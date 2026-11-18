@@ -23,6 +23,7 @@ class RecorderSettings:
     db_path: Path
     segment_seconds: int
     poll_seconds: int
+    helix_poll_seconds: int
     min_free_gb: float
     stall_seconds: int
     ttl_check_seconds: int
@@ -53,6 +54,7 @@ def load_config(path: str | Path, base: Path = REPO_ROOT) -> Config:
         db_path=_path(rec.get("db_path", "data/clipper.db"), base),
         segment_seconds=int(rec.get("segment_seconds", 300)),
         poll_seconds=int(rec.get("poll_seconds", 60)),
+        helix_poll_seconds=int(rec.get("helix_poll_seconds", 15)),
         min_free_gb=float(rec.get("min_free_gb", 25)),
         stall_seconds=int(rec.get("stall_seconds", 90)),
         ttl_check_seconds=int(rec.get("ttl_check_seconds", 600)),

@@ -26,15 +26,12 @@ packages = ["clipper"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-# Legacy modules stay untouched until they are replaced.
-extend-exclude = [
-    "ATRHandler.py", "atr_cmd.py", "cron_script.py", "daemon.py", "db_connection.py",
-    "main.py", "streamConverter.py", "twitch.py", "utils.py", "watcher.py",
-    "chatProcessing", "videoProcessing",
-]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # long literal fixtures (IRC lines, API payloads) read better unwrapped
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

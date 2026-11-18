@@ -10,11 +10,19 @@ import time
 
 from clipper.chat.irc import IrcClient
 from clipper.config import load_config
+from clipper.record.live_status import HelixWatcher
 from clipper.record.recorder import StreamRecorder
-from clipper.record.ttl import run_retention
+from clipper.record.retention import run_retention
 from clipper.store import Store
+from clipper.twitch.helix import HelixClient, HelixError
 
 log = logging.getLogger("clipper.record")
+
+
+def keep_chat_row(row: dict, recorders: dict, buf: list) -> None:
+    rec = recorders.get(row["channel"])
+    if rec is not None and rec.live:
+        buf.append(row)
 
 
 async def main(config_path: str, duration_s: float | None = None) -> None:
@@ -34,9 +42,18 @@ async def main(config_path: str, duration_s: float | None = None) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
 
+    try:
+        helix = HelixClient.from_env()
+    except HelixError:
+        helix = None
+    logins = [s.login for s in cfg.streamers]
+    watcher = HelixWatcher(helix, logins, cfg.recorder.helix_poll_seconds)
+    recorders = [StreamRecorder(s, cfg.recorder, store, watcher) for s in cfg.streamers]
+
+    # Chat is only kept while that streamer is being recorded (no video -> chat is useless).
+    by_login = {r.s.login: r for r in recorders}
     chat_buf: list[dict] = []
-    irc = IrcClient([s.login for s in cfg.streamers], chat_buf.append)
-    recorders = [StreamRecorder(s, cfg.recorder, store) for s in cfg.streamers]
+    irc = IrcClient(logins, lambda row: keep_chat_row(row, by_login, chat_buf))
     ttl_map = {s.login: s.ttl_hours for s in cfg.streamers}
     default_ttl = max(ttl_map.values())
 
@@ -49,8 +66,9 @@ async def main(config_path: str, duration_s: float | None = None) -> None:
 
     async def retention():
         while not stop.is_set():
-            run_retention(store, cfg.recorder.data_dir, ttl_map, default_ttl,
-                          cfg.recorder.min_free_gb)  # fmt: skip
+            run_retention(
+                store, cfg.recorder.data_dir, ttl_map, default_ttl, cfg.recorder.min_free_gb
+            )
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(stop.wait(), timeout=cfg.recorder.ttl_check_seconds)
 
@@ -69,10 +87,18 @@ async def main(config_path: str, duration_s: float | None = None) -> None:
             stop.set()
 
     log.info("recording %d streamers: %s", len(recorders), ", ".join(r.s.login for r in recorders))
-    tasks = [asyncio.create_task(t) for t in (
-        irc.run(stop), flush_chat(), retention(), status(), deadline(),
-        *(r.run(stop) for r in recorders),
-    )]  # fmt: skip
+    tasks = [
+        asyncio.create_task(t)
+        for t in (
+            irc.run(stop),
+            watcher.run(stop),
+            flush_chat(),
+            retention(),
+            status(),
+            deadline(),
+            *(r.run(stop) for r in recorders),
+        )
+    ]
     try:
         await stop.wait()
     finally:

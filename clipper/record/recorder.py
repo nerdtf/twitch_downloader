@@ -1,7 +1,8 @@
 """Per-streamer recorder: streamlink --stdout | ffmpeg segment muxer, supervised by asyncio.
 
-Live detection is done by simply trying to open the stream: streamlink exits within seconds with
-"No playable streams" when the channel is offline, which needs no Twitch API credentials.
+Live detection: Helix (HelixWatcher) wakes the recorder within ~15 s of go-live. As a fallback that
+needs no API keys, the recorder also simply tries to open the stream every `poll_seconds`;
+streamlink exits within seconds with "No playable streams" when the channel is offline.
 """
 
 import asyncio
@@ -16,6 +17,7 @@ from pathlib import Path
 
 from clipper import notify
 from clipper.config import RecorderSettings, Streamer
+from clipper.record.live_status import HelixWatcher
 from clipper.record.segments import SEGMENT_PATTERN, parse_ad_line, segment_start_epoch
 from clipper.store import Store
 
@@ -26,37 +28,62 @@ RETRY_AFTER_DROP_S = 10  # stream dropped mid-way: retry quickly before falling 
 
 def streamlink_cmd(s: Streamer) -> list[str]:
     return [
-        sys.executable, "-m", "streamlink_cli",
+        sys.executable,
+        "-m",
+        "streamlink_cli",
         "--stdout",
-        "--loglevel", "info",
+        "--loglevel",
+        "info",
         "--twitch-low-latency",
-        "--stream-segment-threads", "2",
-        "--retry-open", "1",
+        "--stream-segment-threads",
+        "2",
+        "--retry-open",
+        "1",
         f"https://www.twitch.tv/{s.login}",
         s.quality,
-    ]  # fmt: skip
+    ]
 
 
 def ffmpeg_cmd(out_dir: Path, segment_seconds: int) -> list[str]:
     return [
-        "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "warning",
-        "-i", "pipe:0",
-        "-map", "0:v?", "-map", "0:a?",
-        "-c", "copy",
-        "-f", "segment",
-        "-segment_time", str(segment_seconds),
-        "-reset_timestamps", "1",
-        "-strftime", "1",
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "warning",
+        "-i",
+        "pipe:0",
+        "-map",
+        "0:v?",
+        "-map",
+        "0:a?",
+        "-c",
+        "copy",
+        "-f",
+        "segment",
+        "-segment_time",
+        str(segment_seconds),
+        "-reset_timestamps",
+        "1",
+        "-strftime",
+        "1",
         str(out_dir / SEGMENT_PATTERN),
-    ]  # fmt: skip
+    ]
 
 
 async def probe_duration(path: Path) -> float | None:
     proc = await asyncio.create_subprocess_exec(
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1", str(path),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-    )  # fmt: skip
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
     out, _ = await proc.communicate()
     try:
         return float(out.decode().strip())
@@ -65,20 +92,62 @@ async def probe_duration(path: Path) -> float | None:
 
 
 class StreamRecorder:
-    def __init__(self, streamer: Streamer, settings: RecorderSettings, store: Store):
+    def __init__(
+        self,
+        streamer: Streamer,
+        settings: RecorderSettings,
+        store: Store,
+        watcher: HelixWatcher | None = None,
+    ):
         self.s = streamer
         self.settings = settings
         self.store = store
+        self.watcher = watcher
         self.live = False
+        self._meta: tuple | None = None
 
     async def run(self, stop: asyncio.Event):
         while not stop.is_set():
             produced = await self._record_once(stop)
             if stop.is_set():
                 break
-            delay = RETRY_AFTER_DROP_S if produced else self.settings.poll_seconds
-            with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(stop.wait(), timeout=delay)
+            helix_live = self.watcher.is_live(self.s.login) if self.watcher else None
+            quick = produced or helix_live is True  # dropped, or Helix says live but open failed
+            await self._sleep(stop, RETRY_AFTER_DROP_S if quick else self.settings.poll_seconds)
+
+    async def _sleep(self, stop: asyncio.Event, seconds: float):
+        """Sleep, but wake early on shutdown or when Helix reports go-live."""
+        waiters = [asyncio.ensure_future(stop.wait())]
+        event = self.watcher.went_live.get(self.s.login) if self.watcher else None
+        if event is not None:
+            waiters.append(asyncio.ensure_future(event.wait()))
+        try:
+            await asyncio.wait(waiters, timeout=seconds, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for w in waiters:
+                w.cancel()
+            if event is not None:
+                event.clear()
+
+    def _sync_meta(self, rec_id: int):
+        """Copy Helix stream metadata to the recording; log title/game changes as events."""
+        info = self.watcher.info(self.s.login) if self.watcher else None
+        if info is None:
+            return
+        meta = (info.stream_id, info.title, info.game_name, info.started_at)
+        if meta == self._meta:
+            return
+        if self._meta is not None:
+            if self._meta[1] != info.title:
+                self.store.add_event(
+                    self.s.login, time.time(), "title_change", {"title": info.title}
+                )
+            if self._meta[2] != info.game_name:
+                self.store.add_event(
+                    self.s.login, time.time(), "game_change", {"game": info.game_name}
+                )
+        self.store.update_recording_meta(rec_id, *meta)
+        self._meta = meta
 
     async def _record_once(self, stop: asyncio.Event) -> bool:
         started = time.time()
@@ -89,14 +158,19 @@ class StreamRecorder:
         r, w = os.pipe()
         try:
             sl = await asyncio.create_subprocess_exec(
-                *streamlink_cmd(self.s), stdout=w, stderr=asyncio.subprocess.PIPE,
+                *streamlink_cmd(self.s),
+                stdout=w,
+                stderr=asyncio.subprocess.PIPE,
                 start_new_session=True,
-            )  # fmt: skip
+            )
             ff = await asyncio.create_subprocess_exec(
                 *ffmpeg_cmd(out_dir, self.settings.segment_seconds),
-                stdin=r, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
-                env={**os.environ, "TZ": "UTC"}, start_new_session=True,
-            )  # fmt: skip
+                stdin=r,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+                env={**os.environ, "TZ": "UTC"},
+                start_new_session=True,
+            )
         finally:
             os.close(r)
             os.close(w)
@@ -126,11 +200,17 @@ class StreamRecorder:
                         rec_id = self.store.start_recording(self.s.login, out_dir, started)
                         self.live = True
                         log.info("%s: LIVE, recording to %s", self.s.login, out_dir)
-                        notify.send(f"🔴 {self.s.login} is live — recording")
+                        info = self.watcher.info(self.s.login) if self.watcher else None
+                        notify.send(
+                            f"🔴 {self.s.login} is live — recording"
+                            + (f" ({info.game_name})" if info else "")
+                        )
                     if state["files"]:
                         await self._finish(state["files"][-1])
                     self.store.add_segment(rec_id, self.s.login, f, segment_start_epoch(f))
                     state["files"].append(f)
+                if rec_id is not None:
+                    self._sync_meta(rec_id)
                 if state["files"]:
                     size = state["files"][-1].stat().st_size
                     if size != state["last_size"]:
@@ -180,6 +260,7 @@ class StreamRecorder:
             await self._finish(state["files"][-1])
 
         self.live = False
+        self._meta = None
         if rec_id is None:
             # Offline: no video produced. Keep a hint if it wasn't the usual "offline" exit.
             sl_log = (out_dir / "streamlink.log").read_text(encoding="utf-8", errors="replace")

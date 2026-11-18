@@ -73,7 +73,7 @@ def run_retention(
             duration=r["duration"],
             size_bytes=r["size_bytes"],
             pinned=bool(r["pinned"]),
-        )  # fmt: skip
+        )
         for r in store.live_segments()
     ]
     free = shutil.disk_usage(data_dir).free
