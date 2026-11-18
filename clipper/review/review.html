@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip review</title>
+<style>
+  :root {
+    --bg: #0f1012; --panel: #17191c; --line: #26292e; --text: #e8e8ea; --muted: #8b8f97;
+    --accent: #9b7bff; --ok: #2fbf71; --bad: #e5484d; --laugh: #f5c542; --hype: #ff8a3d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+           padding: 12px 16px; background: rgba(15,16,18,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; }
+  header .count { color: var(--muted); }
+  select, button, textarea { font: inherit; color: inherit; }
+  select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 20px; }
+  .card { display: grid; grid-template-columns: 300px 1fr 340px; gap: 16px; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 12px; padding: 14px; transition: opacity .3s, transform .3s; }
+  .card.gone { opacity: 0; transform: translateX(40px); }
+  @media (max-width: 1050px) { .card { grid-template-columns: 300px 1fr; } .chat { grid-column: 1 / -1; } }
+  @media (max-width: 680px) { .card { grid-template-columns: 1fr; } }
+  .player { position: relative; }
+  video { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 8px; display: block; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); background: #202328; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover:not(:disabled) { border-color: #3a3f47; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.ok { background: var(--ok); border-color: var(--ok); color: #04150b; font-weight: 600; }
+  .btn.bad { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 600; }
+  .meta { color: var(--muted); }
+  .score { font-size: 22px; font-weight: 700; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+  .fam { display: grid; grid-template-columns: 70px 1fr 44px; gap: 8px; align-items: center; margin: 3px 0; }
+  .bar { height: 8px; background: #23262b; border-radius: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .fam .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 12px; }
+  .transcript { max-height: 120px; overflow: auto; color: #cfd0d4; font-size: 13px; background: #121316; padding: 8px; border-radius: 6px; }
+  textarea { width: 100%; min-height: 56px; resize: vertical; background: #101114; border: 1px solid var(--line);
+             border-radius: 8px; padding: 8px; }
+  textarea.need { border-color: var(--bad); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); background: #1d2024; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .chat { display: flex; flex-direction: column; min-height: 0; }
+  .chatlog { flex: 1; min-height: 300px; max-height: 560px; overflow: auto; background: #121316; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+  .msg { padding: 1px 4px; border-radius: 4px; cursor: pointer; display: flex; gap: 6px; }
+  .msg:hover { background: #1c1f24; }
+  .msg .ts { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; width: 38px; }
+  .msg .u { color: #9aa4b5; flex: none; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg.laugh .tx { color: var(--laugh); }
+  .msg.hype .tx { color: var(--hype); }
+  .msg.ign { opacity: .35; }
+  .msg.future { opacity: .45; }
+  .msg.ign.future { opacity: .2; }
+  .marker { margin: 4px 0; padding: 2px 6px; font-size: 11px; color: var(--accent); border-top: 1px dashed var(--accent); }
+  .legend span { margin-right: 10px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #24272d; border: 1px solid var(--line);
+           padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+  .toast.show { opacity: 1; }
+  .empty { text-align: center; color: var(--muted); padding: 80px 0; }
+  .caption { white-space: pre-wrap; font-size: 12px; color: #cfd0d4; background: #121316; padding: 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clip review</h1>
+  <span class="count" id="count"></span>
+  <select id="who"><option value="">All streamers</option></select>
+  <span class="hint">Comment is required. Chat follows the video: grey = after current moment, click a line to jump there.</span>
+</header>
+<main id="list"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const FAMILY_HELP = {
+  chat: "message rate vs last 10 min",
+  laugh: "laugh words (ахах, хыхы…)",
+  audio: "loudness jump",
+  clips: "viewer-made Twitch clips",
+};
+const REJECT = ["не смешно", "нет контекста", "стример не главный", "плохая обрезка", "скучно / тихо", "политика / драма", "реклама / розыгрыш"];
+const APPROVE = ["смешно", "сильная реакция", "хороший хук", "эпичный момент"];
+const CHAT_LAG = 6; // chat reacts ~6 s after the moment
+let clips = [];
+
+const $ = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const fmt = s => (s < 0 ? "-" : "") + Math.floor(Math.abs(s) / 60) + ":" + String(Math.floor(Math.abs(s) % 60)).padStart(2, "0");
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2200); }
+
+async function load() {
+  const r = await fetch("/api/clips");
+  clips = await r.json();
+  const who = document.getElementById("who"), cur = who.value;
+  who.length = 1;
+  [...new Set(clips.map(c => c.login))].sort().forEach(l => who.add(new Option(l, l)));
+  who.value = cur;
+  render();
+}
+
+function render() {
+  const who = document.getElementById("who").value;
+  const list = document.getElementById("list");
+  list.replaceChildren();
+  const shown = clips.filter(c => !who || c.login === who);
+  document.getElementById("count").textContent = `${shown.length} pending`;
+  if (!shown.length) { list.append($("div", "empty", "No pending clips. New ones appear here while streams are live — reload later.")); return; }
+  shown.forEach(c => list.append(card(c)));
+}
+
+function card(c) {
+  const el = $("section", "card");
+
+  // --- player
+  const left = $("div", "player");
+  const v = document.createElement("video");
+  v.src = "/clips/" + c.dir + "/clip.mp4"; v.controls = true; v.preload = "metadata"; v.playsInline = true;
+  const ctl = $("div", "row"); ctl.style.marginTop = "8px";
+  const fs = $("button", "btn", "⛶ Fullscreen");
+  fs.onclick = () => (v.requestFullscreen || v.webkitEnterFullscreen || v.webkitRequestFullscreen).call(v);
+  const ev = $("button", "btn", "▶ Moment");
+  ev.title = "Jump to the detected moment";
+  ev.onclick = () => { v.currentTime = Math.max((c.event_offset ?? 0) - 3, 0); v.play(); };
+  ctl.append(fs, ev);
+  left.append(v, ctl);
+
+  // --- info + decision
+  const mid = $("div");
+  const top = $("div", "row");
+  top.append($("span", "score", c.score.toFixed(1)), $("b", null, c.login),
+             $("span", "meta", `${Math.round(c.duration)} s · ${c.event_utc.slice(0, 16).replace("T", " ")} UTC`));
+  mid.append(top);
+  if (c.practice) mid.append($("div", "hint", "⚠ Practice clip from a past broadcast: audio only, score is not comparable with live clips."));
+  if (c.stream_title) mid.append($("div", "meta", c.stream_title));
+
+  mid.append($("h3", null, "Why this clip"));
+  const j = c.judgement;
+  mid.append($("div", null, j ? (j.reason || "LLM judged") : "Not checked by the LLM yet (key not working) — picked by chat/audio signals only."));
+  const fams = Object.entries(c.families || {});
+  const max = Math.max(4, ...fams.map(([, x]) => x));
+  fams.forEach(([k, x]) => {
+    const row = $("div", "fam");
+    const bar = $("div", "bar"), fill = $("i"); fill.style.width = Math.max(0, Math.min(100, 100 * x / max)) + "%"; bar.append(fill);
+    const name = $("span", null, k); name.title = FAMILY_HELP[k] || "";
+    row.append(name, bar, $("span", "v", k === "clips" ? `${x}` : `${x.toFixed(1)}σ`));
+    mid.append(row);
+  });
+  mid.append($("div", "hint", "σ = how unusual vs. the last 10 minutes (2+ is notable). clips = viewer clips covering the moment."));
+  const pen = Object.entries(c.penalties || {}).filter(([, x]) => x > 0);
+  if (pen.length) mid.append($("div", "hint", "Penalties: " + pen.map(([k, x]) => `${k} −${x}`).join(", ")));
+
+  if (c.transcript) {
+    mid.append($("h3", null, "What was said (auto transcript)"));
+    mid.append($("div", "transcript", c.transcript));
+  }
+  if (c.caption) {
+    mid.append($("h3", null, "Caption"));
+    const cap = $("div", "caption", c.caption);
+    const copy = $("button", "btn", "Copy caption"); copy.style.marginTop = "6px";
+    copy.onclick = async () => { await navigator.clipboard.writeText(c.caption); toast("Caption copied"); };
+    mid.append(cap, copy);
+  }
+
+  mid.append($("h3", null, "Your decision"));
+  const note = document.createElement("textarea");
+  note.placeholder = "Why? (required) — e.g. смешно, сильная реакция / не смешно, нет контекста…";
+  const chips = $("div", "chips");
+  const addChip = (text, kind) => {
+    const ch = $("span", "chip", (kind === "ok" ? "👍 " : "👎 ") + text);
+    ch.onclick = () => { note.value = note.value.trim() ? note.value.trim() + ", " + text : text; note.dispatchEvent(new Event("input")); note.focus(); };
+    chips.append(ch);
+  };
+  APPROVE.forEach(t => addChip(t, "ok")); REJECT.forEach(t => addChip(t, "bad"));
+  const btns = $("div", "row"); btns.style.marginTop = "8px";
+  const ok = $("button", "btn ok", "✓ Approve"), bad = $("button", "btn bad", "✕ Reject");
+  const sync = () => { const has = note.value.trim().length >= 2; ok.disabled = bad.disabled = !has; note.classList.toggle("need", !has && note.dataset.touched === "1"); };
+  note.oninput = () => { note.dataset.touched = "1"; sync(); };
+  sync();
+  const send = async (decision) => {
+    if (note.value.trim().length < 2) { note.dataset.touched = "1"; sync(); note.focus(); return; }
+    ok.disabled = bad.disabled = true;
+    const r = await fetch("/api/decide", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir: c.dir, decision, note: note.value }) });
+    const res = await r.json();
+    if (!r.ok) { toast("Error: " + res.error); sync(); return; }
+    v.pause();
+    el.classList.add("gone");
+    setTimeout(() => { clips = clips.filter(x => x !== c); render(); }, 300);
+    toast(decision === "approved" ? "Approved → " + res.dir : "Rejected");
+  };
+  ok.onclick = () => send("approved"); bad.onclick = () => send("rejected");
+  btns.append(ok, bad);
+  mid.append(note, chips, btns);
+
+  // --- chat synced to the video
+  const right = $("div", "chat");
+  right.append($("h3", null, `Chat (${c.chat.length} messages)`));
+  const lg = $("div", "hint legend");
+  lg.innerHTML = '<span style="color:var(--laugh)">laugh</span><span style="color:var(--hype)">hype</span><span style="opacity:.5">ignored (bots, giveaway, greetings)</span>';
+  right.append(lg);
+  const log = $("div", "chatlog");
+  const lines = [];
+  let markerDone = false;
+  c.chat.forEach(m => {
+    if (!markerDone && c.event_offset != null && m.t >= c.event_offset) {
+      log.append($("div", "marker", `▼ detected moment ${fmt(c.event_offset)} (chat reacts a few seconds later)`));
+      markerDone = true;
+    }
+    const line = $("div", "msg" + (m.laugh ? " laugh" : m.hype ? " hype" : "") + (m.ignored ? " ign" : ""));
+    line.append($("span", "ts", fmt(m.t)), $("span", "u", m.user), $("span", "tx", m.text));
+    line.title = "Jump video here";
+    line.onclick = () => { v.currentTime = Math.max(m.t - CHAT_LAG, 0); v.play(); };
+    log.append(line); lines.push([m.t, line]);
+  });
+  if (!c.chat.length) log.append($("div", "hint", "No chat stored for this moment (VOD source or chat not captured)."));
+  right.append(log);
+  let lastIdx = -1;
+  v.addEventListener("timeupdate", () => {
+    const now = v.currentTime + CHAT_LAG;
+    let idx = -1;
+    lines.forEach(([t, line], i) => { const fut = t > now; line.classList.toggle("future", fut); if (!fut) idx = i; });
+    if (idx !== lastIdx && idx >= 0 && !v.paused) {
+      const l = lines[idx][1];
+      log.scrollTop = l.offsetTop - log.offsetTop - log.clientHeight + 40;
+    }
+    lastIdx = idx;
+  });
+
+  el.append(left, mid, right);
+  return el;
+}
+
+document.getElementById("who").onchange = render;
+load().catch(e => { document.getElementById("list").replaceChildren($("div", "empty", "Cannot load clips: " + e)); });
+</script>
+</body>
+</html>

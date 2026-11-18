@@ -81,9 +81,9 @@ def write_index(root: Path = CLIPS) -> Path:
         "body{font:14px system-ui;background:#111;color:#eee;margin:16px}"
         ".g{display:flex;flex-wrap:wrap;gap:16px}.c{width:300px}video{width:300px;border-radius:8px}"
         ".f{color:#888;font-size:12px}</style>"
-        "<h2>Pending clips</h2><p>Approve: move the folder to <code>approved/&lt;login&gt;/</code>. "
-        "Reject: move it to <code>rejected/&lt;login&gt;/</code> (optional <code>note.txt</code> with the "
-        "reason). Then run <code>uv run python -m clipper.review sync</code>.</p>"
+        "<h2>Pending clips</h2><p><b>Review with buttons, comments and chat:</b> run "
+        "<code>uv run python -m clipper.review serve</code> and open "
+        "<a href='http://127.0.0.1:8765'>http://127.0.0.1:8765</a>.</p>"
         f"<div class=g>{''.join(cards) or '<p>No pending clips.</p>'}</div>"
     )
     index = root / "index.html"

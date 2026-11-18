@@ -1,7 +1,7 @@
 import json
 
 from clipper.learn.__main__ import rows
-from clipper.review.__main__ import sync
+from clipper.review.queue import sync
 from clipper.store import Store
 from clipper.track.__main__ import due, post, views
 
@@ -35,3 +35,33 @@ def test_tracker_due_and_learning_rows(tmp_path):
     assert not any("@24h" in x for x in due(store, now=25 * 3600))
     r = rows(store)[0]
     assert r["audio"] == 2.5 and r["max_views"] == 120_000
+
+
+def test_review_server_decide_requires_note_and_moves(tmp_path):
+    import pytest
+
+    from clipper.review.server import decide, list_pending
+
+    store = Store(tmp_path / "x.db")
+    seed(store)
+    root = tmp_path / "clips"
+    d = root / "pending/buster/00007_20261119-2100"
+    d.mkdir(parents=True)
+    meta = {"login": "buster", "score": 50, "duration": 30, "start_epoch": 90, "end_epoch": 120,
+            "event_utc": "1970-01-01T00:01:40+00:00"}  # fmt: skip
+    (d / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    store.conn.execute(
+        "INSERT INTO chat(channel, sent_ms, recv_ms, kind, login, text) VALUES"
+        " ('buster', 101000, 101000, 'msg', 'v', 'ахахах')"
+    )
+    [item] = list_pending(store, root)
+    assert item["event_offset"] == 10.0 and item["chat"][0]["laugh"]
+    with pytest.raises(ValueError):
+        decide(store, item["dir"], "approved", " ", root)
+    with pytest.raises(ValueError):
+        decide(store, "../../etc", "approved", "ok", root)
+    dst = decide(store, item["dir"], "approved", "смешно", root)
+    assert dst == root / "approved/buster/00007_20261119-2100" and not d.exists()
+    assert (dst / "note.txt").read_text(encoding="utf-8").strip() == "смешно"
+    lab = store.conn.execute("SELECT decision, reason FROM labels WHERE candidate_id=7").fetchone()
+    assert tuple(lab) == ("approved", "смешно")
