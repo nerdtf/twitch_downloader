@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +13,21 @@ from clipper.media.ffmpeg import extract_wav
 log = logging.getLogger(__name__)
 MODEL = "mlx-community/whisper-large-v3-turbo"
 CACHE = REPO_ROOT / "data/cache/transcripts"
+# Phrases Whisper invents on music/silence (it learned them from subtitle credits on YouTube).
+HALLUCINATIONS = re.compile(
+    r"субтитр|DimaTorzok|редактор|корректор|продолжение следует|спасибо за просмотр|"
+    r"подпишись|ставьте лайк|amara\.org|thanks for watching",
+    re.IGNORECASE,
+)
+
+
+def keep_segment(seg: dict) -> bool:
+    """Drop segments that are likely not real speech."""
+    if HALLUCINATIONS.search(seg.get("text", "")):
+        return False
+    if seg.get("no_speech_prob", 0) > 0.6 and seg.get("avg_logprob", 0) < -0.7:
+        return False
+    return seg.get("compression_ratio", 0) <= 2.6  # repetitive loops ("да да да да ...")
 
 
 @dataclass(frozen=True)
@@ -67,8 +83,9 @@ def transcribe_window(
             )
         finally:
             wav.unlink(missing_ok=True)
+        kept = [s for s in r.get("segments", []) if keep_segment(s)]
         raw = {
-            "text": r.get("text", "").strip(),
+            "text": " ".join(s.get("text", "").strip() for s in kept),
             "language": r.get("language", language),
             "words": [
                 {

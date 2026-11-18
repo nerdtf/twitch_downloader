@@ -101,3 +101,19 @@ def test_llm_budget_and_auth(tmp_path):
     store.conn.execute("INSERT INTO llm_calls(epoch, model, cost_usd, ok) VALUES (0, 'm', 5.0, 1)")
     with pytest.raises(BudgetExceeded):
         _judge(store, {}).judge("other prompt")
+
+
+def test_whisper_hallucination_filter():
+    from clipper.judge.transcribe import keep_segment
+
+    assert not keep_segment({"text": " Субтитры сделал DimaTorzok"})
+    assert not keep_segment({"text": "что", "no_speech_prob": 0.9, "avg_logprob": -1.2})
+    assert not keep_segment({"text": "да " * 40, "compression_ratio": 4.0})
+    assert keep_segment(
+        {
+            "text": " ну это просто бесконечно",
+            "no_speech_prob": 0.1,
+            "avg_logprob": -0.3,
+            "compression_ratio": 1.3,
+        }
+    )
