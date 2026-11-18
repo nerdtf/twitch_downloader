@@ -1,53 +1,46 @@
-# automatic-twitch-recorder
+# clipper — Twitch streams → vertical clips for review
 
-Checks if a user on twitch is currently streaming and then records the stream via streamlink
+Records Twitch streams, finds moments likely to become high-view short clips, renders them as
+1080×1920 videos with subtitles, and puts them in a review folder. A human approves and posts.
 
-## Dependencies:
-
-- streamlink (https://streamlink.github.io)
-- python3 (https://www.python.org/) (I use [python3.6](https://www.python.org/downloads/release/python-368/) for windows)
-
-## Installation:
-
-- clone this repo or download
-- make sure you have python3 installed
-- open cmd/terminal
-  - change directory into folder containing the file 'requirements.txt'
-  - type `pip install -r requirements.txt`
-
-## Usage:
-
-### Using the CLI (Command-line interface)
-
-- in your cmd/terminal, run `python main.py`
-- type `help`
-  - `add streamer [quality]`: adds the streamer you want to record in given optional quality, e.g. `add forsen`. Default quality: `best`, quality options: `1080p60, 1080p, 720p60, 720p, 480p, 360p, 160p, audio_only`
-  - `time 10`: sets check interval in seconds
-  - `remove streamer`: removes streamer, also stops recording this streamer
-  - `start`: starts checking for / recording all added streamers
-  - `list`: prints all added streamers
-  - `exit`: stops the application and all currently running recordings
-  - `download_folder path`: sets the download folder for saving the recordings. (#streamer# will be replaced with the name of the streamer)
-
-Example inputs to record forsen and nymn (this will also repeatedly check if they are online):
-
-```
-$ add forsen
-$ add nymn
-$ start
+## Quick start (macOS, Apple Silicon)
+```bash
+uv sync                                   # Python 3.12 env
+cp .env.example .env                      # fill TWITCH_*, LLM_*, (optional) TELEGRAM_*
+uv run python -m clipper.twitch.helix --check buster      # Helix OK?
+uv run python -m clipper.record           # recorder (or deploy/install_recorder.sh for launchd)
+uv run python -m clipper.pipeline live    # finds + renders clips while streams are live
+open data/clips/index.html                # review
 ```
 
+## Layout of the code (one topic = one package)
+| Path | What lives there |
+|---|---|
+| `clipper/record/` | recorder service: streamlink→ffmpeg segments, Helix live check, retention |
+| `clipper/chat/` | everything chat: IRC capture, lexicon, per-second chat features |
+| `clipper/twitch/` | Twitch API (Helix) and past-broadcast (VOD) download |
+| `clipper/media/` | ffmpeg helpers: loudness, cutting, alignment |
+| `clipper/scoring/` | stage-1: signals → per-second score → candidates |
+| `clipper/judge/` | stage-2: Whisper transcript, LLM judge, hard gates, final score |
+| `clipper/render/` | vertical layouts, sponsor blur, subtitles, hook, captions |
+| `clipper/pipeline/` | glue: run stage-1 → stage-2 → render for a VOD or live recordings |
+| `clipper/review/`, `track/`, `learn/` | review sync, posted-clip view tracker, learning dataset |
+| `clipper/eval/` | metrics vs. owner gold / viewer-clip weak gold |
+| `clipper/sources.py`, `store.py`, `config.py` | source abstraction, SQLite schema, config loading |
+| `config/*.yaml` | streamers, layouts, lexicon, scoring weights, programs, eval set |
+| `data/` (gitignored) | recordings, DB, VODs, caches, clips, logs |
 
-## Bugs:
+## Commands
+| Command | Purpose |
+|---|---|
+| `uv run pytest` · `uv run ruff check . && uv run ruff format .` | tests · lint/format |
+| `uv run python -m clipper.record` | recorder (`--duration N` for a test run) |
+| `uv run python -m clipper.pipeline live` | live clip finding during streams |
+| `uv run python -m clipper.pipeline vod <id>... [--judge 8 --render 3]` | practice on a past broadcast |
+| `uv run python -m clipper.twitch.vod <id>...` | download VOD audio + viewer clips |
+| `uv run python -m clipper.eval` | p@10 / recall@40 on config/eval.yaml (hold-out reported apart) |
+| `uv run python -m clipper.review sync` | record approve/reject decisions from folders |
+| `uv run python -m clipper.track posted/views/submitted/due` | posted clips and their views |
+| `uv run python -m clipper.learn export` / `train` | dataset / P(approve) model (≥300 labels) |
 
-- CLI shenanigans
-    - text will get printed into the prompt / user input. However, your input will still be valid, so do not worry. This does not restrict the functionality of this application.
-    - There's an open [stackoverflow question](https://stackoverflow.com/questions/57027294/cmd-module-async-job-prints-are-overwriting-prompt-input) for this. Any volunteers?
-
-## Plans for the future:
-
-- Refactor to easily support any supported streamlink platform, e.g. YouTube.
-- When done recording, upload to YouTube
-- Export to .exe so you don't have to install python
-  - PyInstaller and streamlink apparently do not work well together (streamlink will throw NoPluginError). Help is appreciated.
-- Create a GUI with Qt (PyQt5 or PySide2) (fairly easy, but time consuming)
+Docs: `docs/PLAN.md` (milestones), `docs/DECISIONS.md` (why), `docs/PI_MIGRATION.md`.

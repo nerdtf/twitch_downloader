@@ -1,0 +1,18 @@
+# systemd unit for the recorder on a Raspberry Pi (M7). Install:
+#   sudo cp deploy/pi/clipper-recorder.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now clipper-recorder
+[Unit]
+Description=Clipper Twitch recorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/twitch_downloader
+ExecStart=/home/pi/twitch_downloader/.venv/bin/python -m clipper.record --config config/streamers.yaml
+Restart=always
+RestartSec=30
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

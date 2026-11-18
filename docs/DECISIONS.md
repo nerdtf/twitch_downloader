@@ -2,6 +2,36 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-18 (overnight, autonomous session)
+- **Helix hybrid** (owner asked to use Helix): live check every 15 s + keyless open-attempt fallback.
+- **Chat only while recording** (owner): IRC stays connected, offline chat discarded.
+- **Code layout**: one package, one topic per subpackage (`record`, `chat`, `twitch`, `media`,
+  `scoring`, `judge`, `render`, `pipeline`, `review`, `track`, `learn`, `eval`). Legacy root scripts
+  deleted (still on `ubuntu_setup`). No `# fmt: skip`; lint allows 120-char literals, format at 100.
+- **VOD chat replay not used**: fetching it needs Twitch's internal web GQL API with the web
+  player's client id; the agent's safety check blocked it as unauthorized access. Owner decision
+  if wanted (chat_downloader/yt-dlp do the same thing). Consequence: practice VODs have audio +
+  viewer clips only; chat features are evaluated on our own live recordings.
+- **Twitch `vod_offset` = clip END**, not start (docs say start). Verified by aligning 6 clips'
+  audio against VOD audio: content starts at `vod_offset − duration` (errors 0.1–2.4 dB).
+- **Weak gold** = viewer clips merged into moments; "good" = top 20% by summed views or ≥3 clips.
+  Viewer-clip feature is disabled when evaluating against it (leakage).
+- **Audio loudness alone ≈ chance** on VODs (p@10 0.25 vs chance 0.22, 4 VODs). Not tuned further:
+  chat is the main signal; a laughter/shout model (PANNs) is the next audio step if needed.
+- **VOD downloads are audio-only** (~80 MB/h); video fetched per clip window, exact start found
+  by cross-correlating 20 ms loudness envelopes with the VOD audio.
+- **Whisper**: mlx-whisper large-v3-turbo, ~10× realtime after warm-up (9 s per 90 s). Used for
+  candidates only (whole-stream transcription would be ~18 min per 3 h).
+- **Subtitles via Pillow PNGs**: Homebrew ffmpeg 9 here has no libass/drawtext; installing another
+  ffmpeg needs `brew` (owner prompt). PNG frames + ffconcat = one overlay input, exact timing.
+  Subtitles are transcribed from the final cut itself so they line up exactly.
+- **Default layout fit_blur**: frames show layouts change per scene (buster desk vs IRL, evelone
+  game show), so a fixed facecam crop is unsafe as default. Sponsor overlays seen: Winline
+  (buster), PARI (mokrivskyi) — both betting brands; blur rects in config/layouts.yaml.
+- **LLM judge without a working key** → pipeline runs "unjudged" (stage-1 ranking, dead-air gate)
+  so clips still reach review. Budget cap $2 total by default (`--budget`).
+- **Review via folders** (Telegram low priority, owner): pending → approved/rejected + note.txt.
+
 ## 2026-11-18
 - **Speed over future-proofing** until after GTA VI launch week (launch 2026-11-19).
 - **Live posting** → stage-1 runs during the stream; first deliverable is a Telegram alert + raw cut.

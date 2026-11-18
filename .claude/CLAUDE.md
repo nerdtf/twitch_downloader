@@ -115,9 +115,11 @@ precision@10 per stream-day and recall of gold moments in top-40 candidates.
   only by the owner's approve/reject decisions and real view counts.
 
 ## Commands (keep this section current)
-- `uv run pytest` — tests
-- `uv run ruff check . && uv run ruff format .` — lint/format
+- `uv run pytest` — tests · `uv run ruff check . && uv run ruff format .` — lint/format
 - `uv run python -m clipper.record --config config/streamers.yaml` — recorder (`--duration N` for a test run)
-- `deploy/install_recorder.sh` — install recorder as launchd agent (owner runs it)
-- `uv run python -m clipper.score --vod <path>` — score a local recording (TBD)
-- `uv run python -m clipper.eval` — metrics on the gold set (TBD)
+- `uv run python -m clipper.pipeline live` — live clip finding; `... pipeline vod <id>...` — practice
+- `uv run python -m clipper.twitch.vod <id>...` — fetch VOD audio + viewer clips
+- `uv run python -m clipper.eval` — metrics on config/eval.yaml (owner gold or viewer-clip weak gold)
+- `uv run python -m clipper.review sync` · `clipper.track ...` · `clipper.learn export|train`
+- `deploy/install_recorder.sh` — install recorder + live pipeline as launchd agents (owner runs it)
+- Review queue: `data/clips/pending|approved|rejected/<login>/<id>/`; approved = ready to post.
