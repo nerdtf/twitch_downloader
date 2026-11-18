@@ -95,3 +95,10 @@ def test_dead_air_never_scores():
     audio[600:700] = -85.0  # silence
     cands = stage1(Signals(t0=0, n=n, audio_db=audio), CFG, k=10)
     assert all(not 600 <= c.t < 700 for c in cands if c.score > 0)
+
+
+def test_lexicon_ignore_regex_and_reaction_swears():
+    assert LEX.is_ignored("viewer", "хочу плойку")
+    assert LEX.is_ignored("viewer", "ку")
+    assert not LEX.is_ignored("viewer", "ку ахахах это жесть")
+    assert LEX.classify("ахуеть")[1] and LEX.classify("ЕБААААТЬ")[1]

@@ -22,9 +22,19 @@ hype:
     - '\b(?:уф+|у+ф+)\b'         # уфф
     - '\b(?:pog\w*|wow|omg|holy)\b'
     - '\b(?:клип\w*|clip\w*)\b'  # viewers asking for a clip = strong signal
+    # Mined 2026-11-18 from 305k live chat msgs: 1.7-1.9x more frequent at viewer-clip peaks.
+    - '\b(?:ах[уи]е\w*|о[хx]уе\w*|пиз+дец\w*|е+б+а+т+ь|нихуя|нихера|охренеть|офигеть)\b'
+    - '\bсу+ка+\b'
   emotes: [PogChamp, Pog, POGGERS, PogU, monkaS, monkaW, WutFace, EZ, Clap, peepoClap]
   emoji: ["😱", "🔥", "😳"]
 
 ignore:
-  users: [nightbot, moobot, streamelements, streamlabs, fossabot, wizebot, sery_bot, botrixoficial]
+  users: [nightbot, moobot, streamelements, streamlabs, fossabot, wizebot, sery_bot, botrixoficial,
+          foorrsberg]                # spams "WW" + betting promo links
+  # Messages that are not reactions; dropped before any chat feature (also from message rate).
+  # Mined 2026-11-18: giveaway begging 0.27x and greetings 0.46x as frequent at viewer-clip peaks.
+  regex:
+    - '\b(?:хочу|дайте|подарите|пс5?|ps5|плойк\w*|розыгрыш\w*|ролл\w*|рерол+\w*)\b'
+    - '^\s*(?:ку|бб|привет\w*|здарова|дарова|hi)\s*$'
+
   command_prefix: "!"            # "!GTA6", "!tg" bot commands are not reactions

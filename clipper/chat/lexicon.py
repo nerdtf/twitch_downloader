@@ -39,6 +39,10 @@ class Lexicon:
         ign = raw.get("ignore") or {}
         self.ignore_users = frozenset(u.lower() for u in ign.get("users") or [])
         self.command_prefix = ign.get("command_prefix") or None
+        pats = ign.get("regex") or []
+        self.ignore_regex = (
+            re.compile("|".join(f"(?:{x})" for x in pats), re.IGNORECASE) if pats else None
+        )
 
     @classmethod
     def load(cls, path: Path = DEFAULT_PATH) -> "Lexicon":
@@ -47,7 +51,11 @@ class Lexicon:
     def is_ignored(self, login: str | None, text: str | None) -> bool:
         if login and login.lower() in self.ignore_users:
             return True
-        return bool(text and self.command_prefix and text.lstrip().startswith(self.command_prefix))
+        if not text:
+            return False
+        if self.command_prefix and text.lstrip().startswith(self.command_prefix):
+            return True
+        return bool(self.ignore_regex and self.ignore_regex.search(text))
 
     def classify(self, text: str) -> tuple[bool, bool]:
         """(is_laugh, is_hype)."""
