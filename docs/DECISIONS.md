@@ -15,6 +15,10 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
 - **Viewer-clip count centred** on the moment (clips made 15 s before to 75 s after): a pure
   look-ahead window pulled clip-driven peaks up to ~40 s early. Labels 0.72 -> 0.69 (noise level;
   the labelled moments themselves were placed by the drifting version).
+- **Viewer clips demoted to a tiebreaker** (owner doubts them): weights laugh 0.62, hype 0.15,
+  clips 0.15, audio 0.08. Labels AUC 0.69 -> 0.73; at 0.35 it passes 82% approved / 47% rejected.
+- **GigaAM not tested**: its own model CDN has an expired TLS certificate (not bypassed), and
+  loading it from Hugging Face needs `trust_remote_code`, which this environment blocks.
 - Hype lexicon: «цц» (ww in the Russian layout), «пизда», «нахуй» (owner).
 - **Live waits ~100 s after a moment** (was 45 s) so viewer clips exist; clips polled every 50 s.
 - **Subtitles back to Whisper turbo** — owner: Parakeet's Russian is worse (CLIPPER_ASR=parakeet).

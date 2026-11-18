@@ -11,12 +11,12 @@ family_threshold_z: 2.0       # a family "fires" above this z
 agreement_single_family: 0.6  # multiplier when only one family fires (CLAUDE.md)
 
 weights:                      # relative; normalised over the families available for a source
-  # 2026-11-19, fitted on 69 owner labels (22 approved): AUC 0.64 -> 0.71 (chat + clips only).
-  # Viewer clips made right after a moment predict approval best; message rate predicts nothing.
-  clips: 0.45                 # viewer clips made in the next 90 s, vs this channel's usual rate
-  laugh: 0.40                 # laugh words over 20 s, vs this channel's usual rate
-  hype: 0.10                  # wow / swearing / W chant
-  audio: 0.05                 # loudness jump — tiebreaker only
+  # 2026-11-19: owner wants viewer clips to matter little; on 69 labels clips 0.45 -> 0.15 also
+  # raised AUC 0.69 -> 0.73 (0.25: 0.75, 0: 0.69). Chat laughter decides.
+  laugh: 0.62                 # laugh words over 20 s, vs this channel's usual rate
+  hype: 0.15                  # wow / swearing / W / цц chant
+  clips: 0.15                 # viewer clips made around the moment, vs this channel's usual rate
+  audio: 0.08                 # loudness jump — tiebreaker only
   chat: 0.0                   # message rate: AUC 0.52 on labels (coin flip) — off
 
 clip_window_seconds: 90       # count viewer clips created within this many seconds...
