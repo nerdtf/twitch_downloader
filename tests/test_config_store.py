@@ -54,3 +54,19 @@ def test_store_chat_and_crash_recovery(tmp_path):
     assert st.recover_after_crash(10) == 1
     assert st.conn.execute("SELECT exit_reason FROM recordings").fetchone()[0] == "crash"
     assert st.live_segments()[0]["duration"] == -1
+
+
+def test_telegram_errors_do_not_log_the_token(monkeypatch, caplog):
+    import requests
+
+    from clipper import notify
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:SECRETSECRET")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "1")
+
+    def boom(url, **kw):
+        raise requests.ConnectionError(f"Max retries exceeded with url: {url}")
+
+    monkeypatch.setattr(notify.requests, "post", boom)
+    notify.send("x")
+    assert "SECRETSECRET" not in caplog.text

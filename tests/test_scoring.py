@@ -135,3 +135,8 @@ def test_small_chat_laugh_burst_is_as_unusual_as_big_one():
     big[1000] = 40
     zs, zb = tl.robust_z(small, 600, counts=True)[1000], tl.robust_z(big, 600, counts=True)[1000]
     assert zs >= 4 and zb >= 4
+
+
+def test_cc_chant_and_owner_swears_are_hype():
+    for t in ("цц", "ЦЦЦ", "ну пизда", "нахуй"):
+        assert LEX.classify(t)[1], t

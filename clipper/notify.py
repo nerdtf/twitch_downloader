@@ -24,5 +24,6 @@ def send(text: str, silent: bool = True) -> bool:
         )
         return r.ok
     except requests.RequestException as e:
-        log.warning("telegram send failed: %s", e)
+        # the request URL contains the bot token: never log it
+        log.warning("telegram send failed: %s", str(e).replace(token, "<token>") if token else e)
         return False

@@ -23,6 +23,8 @@ hype:
     - '\b(?:ах[уи]е\w*|о[хx]уе\w*|пиз+дец\w*|е+б+а+т+ь|нихуя|нихера|охренеть|офигеть)\b'
     - '\bсу+ка+\b'
     - '^\s*w+[\s\u034f]*$'         # "W"/"Wwww" chant = win/hype (owner); \u034f = invisible filler
+    - '^\s*ц+[\s\u034f]*$'         # "цц" = "ww" typed in the Russian keyboard layout (owner)
+    - '\b(?:пизда|нахуй)\b'      # 1.4x more frequent at viewer-clip peaks (owner approved)
   # Removed 2026-11-18 (no lift at viewer-clip peaks): кек/лол/ржу/угар/рофл, ))), lol/xd,
   # PogChamp, WutFace.
   emotes: [Pog, POGGERS, PogU, monkaS, monkaW, EZ, Clap, peepoClap]
