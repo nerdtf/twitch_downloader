@@ -9,6 +9,7 @@ from pathlib import Path
 from clipper.config import REPO_ROOT
 from clipper.pipeline.stage2 import Judged
 from clipper.render.caption import build_caption
+from clipper.render.facecam import resolve_layout
 from clipper.render.layout import load_layout
 from clipper.render.render import render_clip
 from clipper.sources import Source
@@ -20,15 +21,18 @@ CLIPS = REPO_ROOT / "data/clips"
 
 def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -> Path:
     stamp = datetime.fromtimestamp(j.event, UTC).strftime("%Y%m%d-%H%M")
-    out_dir = root / "pending" / source.login / f"{j.cand_id:05d}_{stamp}"
+    queue = "practice" if source.key.startswith("vod:") else "pending"  # review is live-only
+    out_dir = root / queue / source.login / f"{j.cand_id:05d}_{stamp}"
     work = out_dir / ".work"
     work.mkdir(parents=True, exist_ok=True)
     try:
         cut = source.video_for(j.start, j.end, work)
         hook = (j.judgement or {}).get("hook_line", "")
-        result = render_clip(
-            cut.path, cut.offset, j.end - j.start, load_layout(source.login), out_dir, hook=hook
+        lay, lay_why = resolve_layout(
+            load_layout(source.login), cut.path, cut.offset, j.end - j.start, source.game
         )
+        log.info("candidate %s layout %s (%s)", j.cand_id, lay.kind, lay_why)
+        result = render_clip(cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook)
         title = (j.judgement or {}).get("title") or f"{source.login}: момент со стрима"
         (out_dir / "caption.txt").write_text(build_caption(source.login, title), encoding="utf-8")
         meta = {
@@ -46,6 +50,8 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
             "subtitle_words": len(result["words"]),
             "stream_title": source.title,
             "game": source.game,
+            "layout": lay.kind,
+            "layout_reason": lay_why,
         }
         (out_dir / "meta.json").write_text(
             json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"

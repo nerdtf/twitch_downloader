@@ -120,6 +120,9 @@ precision@10 per stream-day and recall of gold moments in top-40 candidates.
 - `uv run python -m clipper.pipeline live` — live clip finding; `... pipeline vod <id>...` — practice
 - `uv run python -m clipper.twitch.vod <id>...` — fetch VOD audio + viewer clips
 - `uv run python -m clipper.eval` — metrics on config/eval.yaml (owner gold or viewer-clip weak gold)
-- `uv run python -m clipper.review sync` · `clipper.track ...` · `clipper.learn export|train`
+- `uv run python -m clipper.review serve` — review web app on http://127.0.0.1:8765 (`sync` after manual moves)
+- `uv run python -m clipper.judge.llm --check` — test the LLM key/endpoint (prints the server reply, not the key)
+- `uv run python -m clipper.pipeline backfill` — render judged live moments the cap skipped
+- `uv run python -m clipper.track ...` · `clipper.learn export|train`
 - `deploy/install_recorder.sh` — install recorder + live pipeline as launchd agents (owner runs it)
 - Review queue: `data/clips/pending|approved|rejected/<login>/<id>/`; approved = ready to post.

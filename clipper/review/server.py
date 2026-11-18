@@ -79,7 +79,8 @@ def list_pending(store: Store, root: Path = CLIPS, lex: Lexicon | None = None) -
             {
                 "dir": str(d.relative_to(root)),
                 "login": m.get("login"),
-                "practice": str(m.get("source", "")).startswith("vod:"),
+                "layout": m.get("layout", ""),
+                "layout_reason": m.get("layout_reason", ""),
                 "score": m.get("score", 0),
                 "duration": m.get("duration", 0),
                 "event_utc": m.get("event_utc", ""),

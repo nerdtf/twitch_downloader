@@ -34,13 +34,37 @@ def test_subtitle_track_durations_cover_clip(tmp_path):
 
 
 def test_layouts_and_hook_position():
-    assert load_layout("buster").facecam == (0, 0, 600, 338)
-    assert load_layout("nobody").kind == "fit_blur"
+    assert load_layout("buster").facecam == (0, 0, 490, 274)
+    assert load_layout("nobody").kind == "auto"
     split = Layout(kind="split", facecam=(0, 0, 600, 338), blur=[(10, 10, 100, 50)])
     g = filtergraph(split, 1920, 1080)
     assert "vstack" in g and "gblur" in g and g.endswith("[vout]")
     assert hook_y(split, 1920, 1080) > 400  # below the face, not on it
     assert "overlay=(W-w)/2:(H-h)/2" in filtergraph(Layout(), 1280, 720)
+
+
+def test_split_crop_slides_off_the_webcam():
+    import re
+
+    for cam, ok in [
+        ((0, 600, 500, 300), lambda x, w: x >= 500),
+        ((1450, 0, 470, 300), lambda x, w: x + w <= 1450),
+    ]:
+        g = filtergraph(Layout(kind="split", facecam=cam), 1920, 1080)
+        w, h, x, y = map(int, re.search(r"\[sb\]crop=(\d+):(\d+):(\d+):(\d+)", g).groups())
+        assert ok(x, w), (cam, x, w)
+
+
+def test_resolve_layout_irl_and_no_cam(tmp_path):
+    from clipper.render.facecam import resolve_layout
+
+    lay = Layout(kind="auto", facecam=(0, 0, 400, 300))
+    assert resolve_layout(lay, tmp_path / "x.ts", 0, 10, "Just Chatting")[0].kind == "fit_blur"
+    assert resolve_layout(Layout(kind="auto"), tmp_path / "x.ts", 0, 10)[0].kind == "fit_blur"
+    assert (
+        resolve_layout(Layout(kind="split", facecam=(0, 0, 4, 4)), tmp_path / "x.ts", 0, 10)[0].kind
+        == "split"
+    )
 
 
 def test_caption_has_twitch_line():

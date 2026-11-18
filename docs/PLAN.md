@@ -33,19 +33,24 @@ calibration; laughter/shout detector (PANNs) if audio stays weak; lexicon mining
 Done: mlx-whisper large-v3-turbo (~10× realtime) with word timestamps + cache; LLM judge
 (OpenAI-compatible, strict JSON, retry, cache, USD cap); gates (banned topic, streamer not main,
 dead air, clarity, overlap, program window); final score. Falls back to "unjudged" without LLM.
-**Blocked:** `LLM_API_KEY` returns 401 on api.moonshot.ai and api.moonshot.cn. Owner: check key /
+**Blocked:** `LLM_API_KEY` returns 401 (owner: run `uv run python -m clipper.judge.llm --check`) on api.moonshot.ai and api.moonshot.cn. Owner: check key /
 set `LLM_BASE_URL` (e.g. OpenRouter or DeepSeek endpoint) and `LLM_MODEL`.
 
 ## M4 — Render 🟨
 Done: 1080×1920 `fit_blur` (default, safe for any scene) and `split` (facecam top) layouts;
 sponsor blur rects; word-highlight subtitles + hook drawn with Pillow (Homebrew ffmpeg has no
 libass/drawtext); VideoToolbox H.264; caption.txt + meta.json.
-**Owner:** verify layout rects in `config/layouts.yaml` (measured from VOD frames), choose
-fit_blur vs split per streamer, fill hashtags in `config/programs.yaml`.
+Layout `auto` (default): split (webcam top, gameplay below, crop slides off the webcam) when an
+OpenCV face check finds a face in the configured webcam box, else fit_blur (IRL, scene changes).
+Webcam boxes re-measured from live GTA VI frames 2026-11-18. Past-broadcast (practice) clips go to
+`data/clips/practice/`, never to the review queue.
+**Owner:** confirm evelone's webcam (left cam in the marathon layout), fill hashtags in
+`config/programs.yaml`. Later: better crops/reframing (ideas from open clip tools).
 
-## M5 — Review queue 🟨 (folder-based; Telegram is low priority)
-`data/clips/pending/` → move to `approved/` or `rejected/` (+ `note.txt`) → `clipper.review sync`
-stores labels. `data/clips/index.html` shows pending clips best-first.
+## M5 — Review queue 🟨 (local web app; Telegram is low priority)
+`uv run python -m clipper.review serve` → http://127.0.0.1:8765: approve/reject with a required
+comment, chat of the moment synced to the video, signals behind the score, caption copy,
+fullscreen. Moving folders by hand + `clipper.review sync` still works.
 
 ## M6 — Tracker + learning loop 🟨
 `clipper.track posted|views|submitted|due` (manual entry), `clipper.learn export|train`

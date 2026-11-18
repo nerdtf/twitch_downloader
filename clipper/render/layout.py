@@ -45,6 +45,15 @@ def _scale_rect(r: Rect, sx: float, sy: float) -> Rect:
     return (_even(r[0] * sx), _even(r[1] * sy), _even(r[2] * sx), _even(r[3] * sy))
 
 
+def _avoid(cx: int, cw: int, fx: int, fw: int, src_w: int) -> int:
+    """Shift a centred crop [cx, cx+cw) so it does not include the webcam [fx, fx+fw)."""
+    if cx + cw <= fx or cx >= fx + fw:
+        return cx
+    if fx + fw / 2 < src_w / 2:  # cam on the left -> move right
+        return _even(min(fx + fw, src_w - cw))
+    return _even(max(fx - cw, 0))  # cam on the right -> move left
+
+
 def hook_y(lay: Layout, src_w: int, src_h: int) -> int:
     """Where the hook banner goes: never over the streamer's face."""
     if lay.kind == "split" and lay.facecam:
@@ -79,6 +88,8 @@ def filtergraph(lay: Layout, src_w: int, src_h: int, inp: str = "0:v", out: str 
         if cw / ch > target:
             nw = _even(ch * target)
             cx, cw = cx + (cw - nw) // 2, nw
+            if not lay.content:  # whole frame: slide the crop sideways off the webcam
+                cx = _avoid(cx, cw, fx, fw, src_w)
         else:
             nh = _even(cw / target)
             cy, ch = cy + (ch - nh) // 2, nh

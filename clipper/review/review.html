@@ -134,7 +134,7 @@ function card(c) {
   top.append($("span", "score", c.score.toFixed(1)), $("b", null, c.login),
              $("span", "meta", `${Math.round(c.duration)} s · ${c.event_utc.slice(0, 16).replace("T", " ")} UTC`));
   mid.append(top);
-  if (c.practice) mid.append($("div", "hint", "⚠ Practice clip from a past broadcast: audio only, score is not comparable with live clips."));
+  if (c.layout) mid.append($("div", "hint", `Layout: ${c.layout} — ${c.layout_reason}`));
   if (c.stream_title) mid.append($("div", "meta", c.stream_title));
 
   mid.append($("h3", null, "Why this clip"));

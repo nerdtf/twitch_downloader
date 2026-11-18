@@ -139,7 +139,7 @@ class LLMJudge:
             )
             if r.status_code in (401, 403):
                 raise LLMError(
-                    f"LLM auth failed (HTTP {r.status_code}) — check LLM_API_KEY/LLM_BASE_URL"
+                    f"LLM auth failed (HTTP {r.status_code}) at {self.base_url}: {r.text[:200]}"
                 )
             if not r.ok:
                 last_err = LLMError(f"HTTP {r.status_code}: {r.text[:200]}")
@@ -181,3 +181,30 @@ class LLMJudge:
                 },
             ]
         raise LLMError(f"judge failed: {last_err}")
+
+
+def check() -> int:
+    """`python -m clipper.judge.llm --check`: one tiny request; prints the server's answer,
+    never the key."""
+    load_env()
+    key = os.environ.get("LLM_API_KEY", "")
+    base = (os.environ.get("LLM_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+    model = os.environ.get("LLM_MODEL", "kimi-k3")
+    print(f"base_url={base} model={model} key: {len(key)} chars, starts with {key[:3]!r}, "
+          f"quotes/spaces inside: {any(c in key for c in ' \t\"\'')}")  # fmt: skip
+    r = requests.post(
+        f"{base}/chat/completions",
+        headers={"Authorization": f"Bearer {key}"},
+        json={"model": model, "messages": [{"role": "user", "content": "ok"}], "max_tokens": 5},
+        timeout=60,
+    )
+    print(f"HTTP {r.status_code}: {r.text[:300]}")
+    return 0 if r.ok else 1
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(
+        check() if "--check" in sys.argv else print("usage: python -m clipper.judge.llm --check")
+    )

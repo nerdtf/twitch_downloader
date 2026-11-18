@@ -1,31 +1,31 @@
 # Vertical (1080x1920) layouts per streamer. Coordinates are in the 1920x1080 source frame:
-# [x, y, width, height]. Measured from VOD frames on 2026-11-18 — owner: please verify.
+# [x, y, width, height].
 #
 # layout:
-#   fit_blur  - whole 16:9 frame in the middle, blurred zoomed copy as background. Safe for any
-#               scene (IRL, game shows, two cams) — default.
-#   split     - facecam on top, content below. Better for TikTok, but only when the facecam is
-#               where `facecam` says (it moves between scenes, e.g. buster IRL has no facecam).
+#   auto      - (default) split when a face is really inside `facecam` on the clip's frames,
+#               otherwise fit_blur. Handles IRL / BRB / changed scenes automatically.
+#   split     - always: webcam on top, gameplay below (the crop slides off the webcam unless
+#               `content` is given).
+#   fit_blur  - always: whole 16:9 frame in the middle, blurred zoomed copy as background.
 # blur: rectangles blurred before cropping (sponsor/betting banners — required by programs).
+#
+# Facecams measured from live GTA VI recordings on 2026-11-18.
 
 defaults:
-  layout: fit_blur
+  layout: auto
   content_zoom: 1.0            # fit_blur: >1 zooms the middle frame (crops sides)
   blur: []
 
 streamers:
   buster:
-    facecam: [0, 0, 600, 338]          # desk scene
-    content: [600, 120, 1320, 900]     # browser/game area right of the cam
+    facecam: [0, 0, 490, 274]          # GTA scene: small cam top-left
     blur:
-      - [1690, 40, 225, 140]           # Winline badge (top right, desk scene)
-      - [1660, 290, 250, 75]           # "ссылка под стримом" sponsor plate
-      - [1680, 475, 220, 130]          # "предзаказ / купить билет" plate
+      - [1690, 0, 230, 620]            # right column: Winline / "получи бонусы" / RAMZES / promo plates
   zloyn:
-    facecam: [0, 0, 667, 375]
-    content: [667, 0, 1253, 1080]
+    facecam: [1474, 200, 446, 336]     # GTA scene: cam right side
   mokrivskyi:
-    facecam: [0, 268, 432, 245]
+    facecam: [0, 268, 432, 245]        # from an older VOD; outdoors/IRL scenes fall back to fit_blur
     blur:
       - [25, 130, 330, 110]            # PARI betting logo
-  evelone2004: {}                      # game-show layouts vary -> fit_blur
+  evelone2004:
+    facecam: [0, 624, 420, 240]        # GTA marathon: LEFT cam (owner: confirm it is evelone)
