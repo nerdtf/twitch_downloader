@@ -17,20 +17,18 @@ myenv/
 dist/
 build/
 
-# --- Runtime data / outputs (large or generated) ---
-data/recordings/
-data/clips/
-data/ready_to_post/
-data/*.db
-data/*.db-*
-*.db
-*.sqlite
-*.sqlite3
-Clips/
-chatSegments/
+# --- Runtime data: everything under data/ is local (recordings, DB, VODs, caches, clips, logs).
+# Exception: owner-maintained labels and gold set may be versioned.
+data/*
+!data/gold/
+!data/labels/
 *.ts
 *.mp4
 *.log
+*.wav
+*.db
+*.sqlite
+*.sqlite3
 
 # --- Personal lists (move to config/streamers.yaml later) ---
 streamers.txt
