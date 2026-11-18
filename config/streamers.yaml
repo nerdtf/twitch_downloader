@@ -5,7 +5,7 @@
 
 defaults:
   quality: "1080p60,1080p,best"   # comma list = fallback order (streamlink syntax)
-  ttl_hours: 12                   # keep raw segments this long (live posting -> old video is stale)
+  ttl_hours: 6                    # keep raw segments this long (live posting -> old video is stale)
 
 recorder:
   data_dir: data/recordings
@@ -17,6 +17,7 @@ recorder:
   ttl_check_seconds: 600
 
 streamers:
-  # TODO(owner): replace with the 4-5 program streamers
-  - login: example_streamer
-    enabled: false
+  - login: buster
+  - login: evelone2004
+  - login: zloyn
+  - login: mokrivskyi
