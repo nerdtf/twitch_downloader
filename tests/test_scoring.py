@@ -120,3 +120,16 @@ def test_chat_laugh_beats_loud_but_quiet_chat():
     assert abs(cands[0].t - 600) <= 6
     loud = [c for c in cands if abs(c.t - 1200) <= 6]
     assert not loud or loud[0].score < cands[0].score / 2
+
+
+def test_small_chat_laugh_burst_is_as_unusual_as_big_one():
+    """3 laughs in a near-silent chat should score like 40 in a busy one (owner: zloyn)."""
+    from clipper.scoring import timeline as tl
+
+    small = np.zeros(1200, np.float32)
+    small[::97] = 1  # ~1 laugh per 1.5 min
+    small[1000] = 3
+    big = np.random.default_rng(0).poisson(5, 1200).astype(np.float32)
+    big[1000] = 40
+    zs, zb = tl.robust_z(small, 600, counts=True)[1000], tl.robust_z(big, 600, counts=True)[1000]
+    assert zs >= 4 and zb >= 4

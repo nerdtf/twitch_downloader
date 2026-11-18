@@ -3,6 +3,10 @@
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
 ## 2026-11-18 (night)
+- **Small chats scored fairly** (owner: zloyn is funny but got no moments). Laugh/hype z-scores now
+  use the channel's own Poisson noise (sqrt of its recent mean) instead of a fixed floor of 1, so
+  3 laughs in a quiet chat count like 40 in evelone's. zloyn candidates/h 5.8 -> 7.3; plus a
+  per-streamer threshold (`min_score_per_streamer`, zloyn 0.25) -> ~8.6/h vs 10-12 for others.
 - **Speech-to-text: Parakeet TDT 0.6B v3 (parakeet-mlx)** instead of Whisper large-v3-turbo. Owner:
   subtitles miss words. On 6 live windows Parakeet kept slang/swearing Whisper dropped, did not
   "translate" English game dialogue into invented Russian, and is ~25x faster than Whisper large

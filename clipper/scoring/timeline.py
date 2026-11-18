@@ -52,10 +52,25 @@ def trailing_median_mad(x: np.ndarray, w: int) -> tuple[np.ndarray, np.ndarray]:
     return med.astype(np.float32), mad.astype(np.float32)
 
 
-def robust_z(x: np.ndarray, w: int, floor: float = 1.0) -> np.ndarray:
-    """(x - trailing median) / scale, scale = max(1.4826·MAD, 10% of median, floor)."""
+def trailing_mean(x: np.ndarray, w: int) -> np.ndarray:
+    """Mean of x[t-w : t] (the past only; early seconds use whatever past exists)."""
+    c = np.concatenate([[0.0], np.cumsum(x, dtype=np.float64)])
+    idx = np.arange(len(x))
+    lo = np.maximum(idx - w, 0)
+    n = np.maximum(idx - lo, 1)
+    return ((c[idx] - c[lo]) / n).astype(np.float32)
+
+
+def robust_z(x: np.ndarray, w: int, floor: float = 1.0, counts: bool = False) -> np.ndarray:
+    """(x - trailing median) / scale, scale = max(1.4826·MAD, 10% of median, floor).
+
+    counts=True (event counts like laughs per window): the floor is the Poisson noise of that
+    channel, sqrt(trailing mean + 0.25), instead of a fixed number. A small chat where 3 people
+    laugh at once is as unusual as a big chat where 40 do (owner, 2026-11-18: zloyn).
+    """
     med, mad = trailing_median_mad(x, w)
-    scale = np.maximum.reduce([1.4826 * mad, 0.1 * np.abs(med), np.full_like(med, floor)])
+    base = np.sqrt(trailing_mean(x, w) + 0.25) if counts else np.full_like(med, floor)
+    scale = np.maximum.reduce([1.4826 * mad, 0.1 * np.abs(med), base])
     return ((x - med) / scale).astype(np.float32)
 
 

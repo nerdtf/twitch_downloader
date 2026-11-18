@@ -129,10 +129,11 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
     if sig.n < 120:
         return
     warm = src.t0 + cfg.get("warmup_seconds", 0)
+    min_score = (cfg.get("min_score_per_streamer") or {}).get(src.login, args.min_score)
     settled = [
         c
         for c in stage1(sig, cfg, k=10)
-        if warm <= sig.t0 + c.t <= now - 45 and c.score >= args.min_score
+        if warm <= sig.t0 + c.t <= now - 45 and c.score >= min_score
     ]
     fresh = []
     for c in settled:

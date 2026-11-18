@@ -62,8 +62,8 @@ def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
         if "hype" in cfg["weights"]:  # laugh (funny) and hype (wow/W spam) scored separately
             laugh = tl.shift(tl.forward_sum(sig.chat.laugh, w), lag)
             hype = tl.shift(tl.forward_sum(sig.chat.hype, w), lag)
-            out["laugh"] = tl.robust_z(laugh, base, floor=1.0)
-            out["hype"] = tl.robust_z(hype, base, floor=1.0)
+            out["laugh"] = tl.robust_z(laugh, base, counts=True)
+            out["hype"] = tl.robust_z(hype, base, counts=True)
         else:
             react = tl.shift(tl.forward_sum(sig.chat.laugh + sig.chat.hype, w), lag)
             out["laugh"] = tl.robust_z(react, base, floor=1.0)
