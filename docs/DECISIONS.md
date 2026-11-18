@@ -9,6 +9,13 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
   laugh 0.40 over 20 s, hype 0.10, audio 0.05, message rate 0. Labels AUC 0.64 -> 0.71; at the 0.35
   threshold it passes 77% of approved vs 40% of rejected (was 82% / 60%). An absolute clip count
   scored 0.77 but favours big channels (zloyn), so the per-channel version was chosen.
+- **Chat speed-up** (owner): msgs/s in the next 20 s vs the previous 30 s. As a scoring weight it
+  lowered label AUC (0.72 -> 0.65-0.69, it is high for approved and rejected alike); it now counts
+  as "chat reacted" in the reaction gate (neutral on labels, rescues hype moments without laughs).
+- **Viewer-clip count centred** on the moment (clips made 15 s before to 75 s after): a pure
+  look-ahead window pulled clip-driven peaks up to ~40 s early. Labels 0.72 -> 0.69 (noise level;
+  the labelled moments themselves were placed by the drifting version).
+- Hype lexicon: «цц» (ww in the Russian layout), «пизда», «нахуй» (owner).
 - **Live waits ~100 s after a moment** (was 45 s) so viewer clips exist; clips polled every 50 s.
 - **Subtitles back to Whisper turbo** — owner: Parakeet's Russian is worse (CLIPPER_ASR=parakeet).
 - Top rejection reasons: not funny 15, no context 8, boring 5, streamer not main 4 — the last two

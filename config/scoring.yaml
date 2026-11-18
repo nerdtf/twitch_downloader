@@ -19,13 +19,18 @@ weights:                      # relative; normalised over the families available
   audio: 0.05                 # loudness jump — tiebreaker only
   chat: 0.0                   # message rate: AUC 0.52 on labels (coin flip) — off
 
-clip_window_seconds: 90       # count viewer clips created within this many seconds after a moment
+clip_window_seconds: 90       # count viewer clips created within this many seconds...
+clip_offset_seconds: -15      # ...starting 15 s before the moment (keeps the peak on the moment)
 reaction_window_seconds: 20   # laugh/hype counted over this window (10 s was noisier)
 reaction_lag_seconds: 3
 
 reaction_gate:                # score multiplier when chat does not laugh at the moment
   hype_only: 0.6              # chat reacts (wow/W) but nobody laughs
   no_reaction: 0.35           # neither laugh nor hype fires (replaces the agreement multiplier)
+  # Owner: chat suddenly getting faster also marks a hype moment. As a scoring weight it hurt the
+  # labels (AUC 0.72 -> 0.65-0.69); as a "chat reacted" signal here it is neutral on labels and
+  # rescues epic/hype moments where chat explodes without laughing.
+  speedup_is_reaction: true
 
 min_score_per_streamer:       # overrides `pipeline live --min-score` (0.35) for small chats
   zloyn: 0.25                 # ~60 msgs/min vs 650 on evelone: ~8.6 moments/h instead of 7.3

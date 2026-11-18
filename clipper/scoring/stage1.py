@@ -59,6 +59,17 @@ def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
     if sig.chat is not None:
         rate = tl.shift(tl.forward_sum(sig.chat.msgs, w), lag)
         out["chat"] = tl.robust_z(rate, base, floor=2.0)
+        if cfg["weights"].get("speedup") or (cfg.get("reaction_gate") or {}).get(
+            "speedup_is_reaction"
+        ):
+            # chat suddenly getting faster: msgs/s in the next 20 s vs the previous 30 s (log ratio)
+            m = sig.chat.msgs.astype(np.float32)
+            nxt = tl.shift(tl.forward_sum(m, 20), cfg.get("reaction_lag_seconds", lag)) / 20
+            prev = (
+                np.concatenate([np.zeros(30, np.float32), tl.forward_sum(m, 30)[:-30]])[: sig.n]
+                / 30
+            )
+            out["speedup"] = tl.robust_z(np.log((nxt + 0.2) / (prev + 0.2)), base, floor=0.15)
         if "hype" in cfg["weights"]:  # laugh (funny) and hype (wow/W spam) scored separately
             rw = cfg.get("reaction_window_seconds", w)  # laughter that lasts beats a 10 s burst
             rlag = cfg.get("reaction_lag_seconds", lag)
@@ -85,7 +96,9 @@ def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
         for _a, b in sig.clip_spans:
             if 0 <= int(b) < sig.n:
                 made[int(b)] += 1
-        cnt = tl.forward_sum(made, cw)
+        # clips made in [t + off, t + off + cw): off < 0 keeps the peak on the moment instead of
+        # dragging it up to cw seconds early (viewers clip 10-60 s after the moment)
+        cnt = tl.shift(tl.forward_sum(made, cw), cfg.get("clip_offset_seconds", 0))
         if cfg.get("clip_count_cap"):  # absolute: log(count) scaled so `cap` clips = z_cap
             out["clips"] = (np.log1p(cnt) / np.log1p(cfg["clip_count_cap"]) * cfg["z_cap"]).astype(
                 np.float32
@@ -106,6 +119,7 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
         fam.pop("clips", None)
     if not fam:
         return []
+    all_fam = fam
     weights = {f: cfg["weights"][f] for f in fam if cfg["weights"].get(f, 0) > 0}
     fam = {f: fam[f] for f in weights}
     total_w = sum(weights.values())
@@ -126,6 +140,8 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
         # least a hype) reaction a moment is down-ranked no matter how loud it is.
         laugh_fires = fam["laugh"] >= thr
         hype_fires = fam["hype"] >= thr if "hype" in fam else np.zeros(sig.n, bool)
+        if gate.get("speedup_is_reaction") and "speedup" in all_fam:
+            hype_fires = hype_fires | (all_fam["speedup"] >= thr)  # chat suddenly faster
         score = score * np.where(
             laugh_fires, 1.0, np.where(hype_fires, gate["hype_only"], gate["no_reaction"])
         )

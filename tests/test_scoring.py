@@ -140,3 +140,35 @@ def test_small_chat_laugh_burst_is_as_unusual_as_big_one():
 def test_cc_chant_and_owner_swears_are_hype():
     for t in ("цц", "ЦЦЦ", "ну пизда", "нахуй"):
         assert LEX.classify(t)[1], t
+
+
+def test_chat_speedup_counts_as_reaction():
+    """Owner: chat suddenly getting faster marks a hype moment even without laugh words."""
+    import copy
+
+    n = 1800
+    rng = np.random.default_rng(1)
+    rows = [
+        {"sent_ms": (1000 + t) * 1000 + j, "kind": "msg", "login": f"u{t}_{j}", "user_id": None,
+         "text": f"сообщение {t} {j}"}
+        for t in range(n) for j in range(rng.poisson(2))
+    ]  # fmt: skip
+    rows += [
+        {"sent_ms": (1000 + 900 + j % 15) * 1000 + j, "kind": "msg", "login": f"s{j}", "user_id": None,
+         "text": f"что происходит {j}"}
+        for j in range(150)
+    ]  # fmt: skip
+    chat = chat_signals(rows, 1000, 1000 + n, LEX)
+    clips = [(t - 30, t) for t in range(100, 1700, 200)] + [
+        (t - 30, t) for t in (905, 915, 925, 940)
+    ]
+    sig = Signals(t0=1000, n=n, chat=chat, clip_spans=clips)
+    on = copy.deepcopy(CFG)
+    on["reaction_gate"] = dict(on["reaction_gate"], speedup_is_reaction=True)
+    off = copy.deepcopy(CFG)
+    off["reaction_gate"] = dict(off["reaction_gate"], speedup_is_reaction=False)
+
+    def score_at(cfg):
+        return max((c.score for c in stage1(sig, cfg, k=20) if abs(c.t - 890) <= 30), default=0.0)
+
+    assert score_at(on) > score_at(off)
