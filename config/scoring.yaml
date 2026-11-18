@@ -11,13 +11,17 @@ family_threshold_z: 2.0       # a family "fires" above this z
 agreement_single_family: 0.6  # multiplier when only one family fires (CLAUDE.md)
 
 weights:                      # relative; normalised over the families available for a source
-  # Owner 2026-11-18: chat decides whether a moment is funny; loud-but-boring moments ranked top
-  # before. Checked on 14 owner labels: AUC approved>rejected 0.69 -> 0.81.
-  laugh: 0.50                 # laugh words (ахах, хыхы...) vs last 10 min
-  hype: 0.15                  # wow / swearing / W chant
-  chat: 0.15                  # message rate
+  # 2026-11-19, fitted on 69 owner labels (22 approved): AUC 0.64 -> 0.71 (chat + clips only).
+  # Viewer clips made right after a moment predict approval best; message rate predicts nothing.
+  clips: 0.45                 # viewer clips made in the next 90 s, vs this channel's usual rate
+  laugh: 0.40                 # laugh words over 20 s, vs this channel's usual rate
+  hype: 0.10                  # wow / swearing / W chant
   audio: 0.05                 # loudness jump — tiebreaker only
-  clips: 0.15                 # viewer-made Twitch clips (disabled in eval against clip gold)
+  chat: 0.0                   # message rate: AUC 0.52 on labels (coin flip) — off
+
+clip_window_seconds: 90       # count viewer clips created within this many seconds after a moment
+reaction_window_seconds: 20   # laugh/hype counted over this window (10 s was noisier)
+reaction_lag_seconds: 3
 
 reaction_gate:                # score multiplier when chat does not laugh at the moment
   hype_only: 0.6              # chat reacts (wow/W) but nobody laughs

@@ -60,8 +60,10 @@ def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
         rate = tl.shift(tl.forward_sum(sig.chat.msgs, w), lag)
         out["chat"] = tl.robust_z(rate, base, floor=2.0)
         if "hype" in cfg["weights"]:  # laugh (funny) and hype (wow/W spam) scored separately
-            laugh = tl.shift(tl.forward_sum(sig.chat.laugh, w), lag)
-            hype = tl.shift(tl.forward_sum(sig.chat.hype, w), lag)
+            rw = cfg.get("reaction_window_seconds", w)  # laughter that lasts beats a 10 s burst
+            rlag = cfg.get("reaction_lag_seconds", lag)
+            laugh = tl.shift(tl.forward_sum(sig.chat.laugh, rw), rlag)
+            hype = tl.shift(tl.forward_sum(sig.chat.hype, rw), rlag)
             out["laugh"] = tl.robust_z(laugh, base, counts=True)
             out["hype"] = tl.robust_z(hype, base, counts=True)
         else:
@@ -76,7 +78,21 @@ def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
         z = (jump - jmed) / max(1.4826 * jmad, 0.5)
         z[db < -60] = np.minimum(z[db < -60], 0)  # silence/dead air never scores
         out["audio"] = z.astype(np.float32)
-    if sig.clip_spans:
+    cw = cfg.get("clip_window_seconds")
+    if sig.clip_spans and cw:
+        # viewer clips MADE in the next `cw` s (span end = creation), vs this channel's usual rate
+        made = np.zeros(sig.n, np.float32)
+        for _a, b in sig.clip_spans:
+            if 0 <= int(b) < sig.n:
+                made[int(b)] += 1
+        cnt = tl.forward_sum(made, cw)
+        if cfg.get("clip_count_cap"):  # absolute: log(count) scaled so `cap` clips = z_cap
+            out["clips"] = (np.log1p(cnt) / np.log1p(cfg["clip_count_cap"]) * cfg["z_cap"]).astype(
+                np.float32
+            )
+        else:  # relative to this channel's usual clip rate
+            out["clips"] = tl.robust_z(cnt, base, counts=True)
+    elif sig.clip_spans:
         cover = np.zeros(sig.n, np.float32)
         for a, b in sig.clip_spans:
             cover[max(int(a), 0) : max(min(int(b) + 1, sig.n), 0)] += 1
@@ -90,14 +106,17 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
         fam.pop("clips", None)
     if not fam:
         return []
-    weights = {f: cfg["weights"][f] for f in fam}
+    weights = {f: cfg["weights"][f] for f in fam if cfg["weights"].get(f, 0) > 0}
+    fam = {f: fam[f] for f in weights}
     total_w = sum(weights.values())
     cap, thr = cfg["z_cap"], cfg["family_threshold_z"]
+    clips_z = bool(cfg.get("clip_window_seconds"))  # clips as a z-score, not a raw count
+    cmul = 1.0 if clips_z else 3.0
 
     norm = {}
     for f, z in fam.items():
         # clips: 1 clip ~ z 3, 2+ ~ cap
-        v = np.minimum(z * 3.0, cap) if f == "clips" else np.clip(z, 0, cap)
+        v = np.minimum(z * 3.0, cap) if f == "clips" and not clips_z else np.clip(z, 0, cap)
         norm[f] = v / cap
     score = sum(weights[f] * norm[f] for f in fam) / total_w
 
@@ -119,7 +138,7 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
             fires = np.zeros(sig.n, bool)
             for m in groups[g]:
                 if m in fam:
-                    fires |= (fam[m] * (3.0 if m == "clips" else 1.0)) >= thr
+                    fires |= (fam[m] * (cmul if m == "clips" else 1.0)) >= thr
             fired_n += fires
         score = score * np.where(fired_n >= 2, 1.0, cfg["agreement_single_family"])
 
@@ -142,7 +161,7 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
                 pens["notices"] = pen["notices_penalty"]
         s = max(s - sum(pens.values()), 0.0)
         fams = {f: float(fam[f][t]) for f in fam}
-        fired = [f for f, z in fams.items() if z * (3.0 if f == "clips" else 1.0) >= thr]
+        fired = [f for f, z in fams.items() if z * (cmul if f == "clips" else 1.0) >= thr]
         cands.append(
             Candidate(
                 t=t,

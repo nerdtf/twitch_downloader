@@ -1,13 +1,14 @@
 """Local speech-to-text on Apple Silicon with word timestamps, cached on disk.
 
-Default: NVIDIA Parakeet TDT 0.6B v3 (parakeet-mlx) — free, ~25x faster than Whisper large, and on
-our stream audio it dropped fewer words and invented less than Whisper (2026-11-18 comparison,
-6 live windows). Whisper turbo is the fallback when Parakeet returns nothing.
+Default: Whisper large-v3-turbo (mlx-whisper). Parakeet TDT v3 was tried 2026-11-18 (faster, better
+on English game dialogue) but the owner found its Russian worse -> back to Whisper. Set
+CLIPPER_ASR=parakeet to use it. Next to try: GigaAM v3 (Russian-specific; install was blocked).
 """
 
 import hashlib
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,8 +17,9 @@ from clipper.config import REPO_ROOT
 from clipper.media.ffmpeg import extract_wav
 
 log = logging.getLogger(__name__)
-MODEL = "mlx-community/parakeet-tdt-0.6b-v3"
+PARAKEET = "mlx-community/parakeet-tdt-0.6b-v3"
 WHISPER = "mlx-community/whisper-large-v3-turbo"
+MODEL = PARAKEET if os.environ.get("CLIPPER_ASR") == "parakeet" else WHISPER
 _PARAKEET = None
 CACHE = REPO_ROOT / "data/cache/transcripts"
 # Phrases Whisper invents on music/silence (it learned them from subtitle credits on YouTube).
@@ -71,7 +73,7 @@ def _parakeet(wav: Path) -> dict:
     if _PARAKEET is None:
         from parakeet_mlx import from_pretrained  # heavy import, only when needed
 
-        _PARAKEET = from_pretrained(MODEL)
+        _PARAKEET = from_pretrained(PARAKEET)
     # chunking also fixes empty output on some mixed-language windows
     r = _PARAKEET.transcribe(str(wav), chunk_duration=30.0, overlap_duration=5.0)
     words: list[dict] = []

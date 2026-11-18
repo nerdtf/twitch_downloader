@@ -109,7 +109,7 @@ def run_live(args) -> None:
         ).fetchall()
         for r in recs:
             try:
-                if helix and r["login"] in user_ids and now - last_clip_poll.get(r["id"], 0) > 120:
+                if helix and r["login"] in user_ids and now - last_clip_poll.get(r["id"], 0) > 50:
                     started = datetime.fromtimestamp(r["started_epoch"], UTC).strftime(
                         "%Y-%m-%dT%H:%M:%SZ"
                     )
@@ -130,10 +130,11 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
         return
     warm = src.t0 + cfg.get("warmup_seconds", 0)
     min_score = (cfg.get("min_score_per_streamer") or {}).get(src.login, args.min_score)
+    settle = max(45, cfg.get("clip_window_seconds", 0) + 10)  # wait until viewer clips are in
     settled = [
         c
         for c in stage1(sig, cfg, k=10)
-        if warm <= sig.t0 + c.t <= now - 45 and c.score >= min_score
+        if warm <= sig.t0 + c.t <= now - settle and c.score >= min_score
     ]
     fresh = []
     for c in settled:

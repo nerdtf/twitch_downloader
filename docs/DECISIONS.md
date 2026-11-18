@@ -2,6 +2,18 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-19 (69 owner labels: 22 approved / 47 rejected)
+- **Scoring fitted to labels.** Per-feature AUC: viewer clips made in the 2 min after a moment 0.76,
+  laughter over 30 s 0.69, laugh share 0.66, message rate 0.52 (useless), loudness 0.55. New stage-1:
+  clips 0.45 (count in next 90 s vs the channel's usual rate — the old signal capped at 2 clips),
+  laugh 0.40 over 20 s, hype 0.10, audio 0.05, message rate 0. Labels AUC 0.64 -> 0.71; at the 0.35
+  threshold it passes 77% of approved vs 40% of rejected (was 82% / 60%). An absolute clip count
+  scored 0.77 but favours big channels (zloyn), so the per-channel version was chosen.
+- **Live waits ~100 s after a moment** (was 45 s) so viewer clips exist; clips polled every 50 s.
+- **Subtitles back to Whisper turbo** — owner: Parakeet's Russian is worse (CLIPPER_ASR=parakeet).
+- Top rejection reasons: not funny 15, no context 8, boring 5, streamer not main 4 — the last two
+  need the LLM/transcript, not chat.
+
 ## 2026-11-18 (night)
 - **Small chats scored fairly** (owner: zloyn is funny but got no moments). Laugh/hype z-scores now
   use the channel's own Poisson noise (sqrt of its recent mean) instead of a fixed floor of 1, so
