@@ -54,12 +54,24 @@ def _avoid(cx: int, cw: int, fx: int, fw: int, src_w: int) -> int:
     return _even(max(fx - cw, 0))  # cam on the right -> move left
 
 
-def hook_y(lay: Layout, src_w: int, src_h: int) -> int:
-    """Where the hook banner goes: never over the streamer's face."""
+def _cam_h(lay: Layout, src_w: int, src_h: int) -> int:
+    fw, fh = lay.facecam[2] * src_w / 1920, lay.facecam[3] * src_h / 1080
+    return _even(OUT_W * fh / fw)
+
+
+def sub_center_y(lay: Layout, src_w: int, src_h: int) -> int:
+    """Vertical centre of the subtitle line: just under the streamer's webcam (split) or just
+    under the 16:9 frame (fit_blur)."""
     if lay.kind == "split" and lay.facecam:
-        fw, fh = lay.facecam[2] * src_w / 1920, lay.facecam[3] * src_h / 1080
-        cam_h = OUT_W * fh / fw
-        return int(cam_h - 150)  # straddles the cam/content border
+        return _cam_h(lay, src_w, src_h) + 75
+    frame_h = OUT_W * src_h / src_w * lay.content_zoom
+    return int((OUT_H + frame_h) / 2 + 75)
+
+
+def hook_y(lay: Layout, src_w: int, src_h: int) -> int:
+    """Top of the hook banner: never over the face or the subtitles."""
+    if lay.kind == "split" and lay.facecam:
+        return _cam_h(lay, src_w, src_h) + 180  # below the subtitle line
     return 150  # fit_blur: blurred area above the frame
 
 

@@ -5,8 +5,8 @@ from pathlib import Path
 
 from clipper.judge.transcribe import Word, transcribe_window
 from clipper.media.ffmpeg import FFMPEG, probe_video, run
-from clipper.render.layout import OUT_H, OUT_W, Layout, filtergraph, hook_y
-from clipper.render.subtitles import SUB_Y, build_subtitle_track, render_hook
+from clipper.render.layout import OUT_H, OUT_W, Layout, filtergraph, hook_y, sub_center_y
+from clipper.render.subtitles import BAND_H, build_subtitle_track, render_hook
 
 log = logging.getLogger(__name__)
 HOOK_SECONDS = 3.0
@@ -35,7 +35,8 @@ def render_clip(
     inputs += ["-f", "concat", "-safe", "0", "-i", str(subs)]
     graph = [filtergraph(layout, info["width"], info["height"], "0:v", "base")]
     graph.append(f"[1:v]format=rgba,fps={fps}[subs]")
-    graph.append(f"[base][subs]overlay=0:{SUB_Y}:shortest=0:eof_action=pass[withsubs]")
+    sub_y = sub_center_y(layout, info["width"], info["height"]) - BAND_H // 2
+    graph.append(f"[base][subs]overlay=0:{sub_y}:shortest=0:eof_action=pass[withsubs]")
     last = "withsubs"
     if hook.strip():
         hook_png = render_hook(hook, work / "hook.png")

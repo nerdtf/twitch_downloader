@@ -13,6 +13,9 @@ from dataclasses import dataclass, field
 log = logging.getLogger(__name__)
 
 HOST, PORT = "irc.chat.twitch.tv", 6697
+CONNECT_TIMEOUT = 20.0
+IDLE_PROBE = 60.0  # no line for this long -> send PING (busy channels never get here)
+PONG_TIMEOUT = 15.0  # ...and reconnect if nothing comes back
 _TAG_UNESCAPE = {"s": " ", ":": ";", "\\": "\\", "r": "\r", "n": "\n"}
 
 
@@ -133,9 +136,10 @@ class IrcClient:
         while not stop.is_set():
             try:
                 await self._session(stop)
-                backoff = 1.0
             except (OSError, asyncio.IncompleteReadError, TimeoutError) as e:
                 log.warning("IRC connection error: %s", e)
+            if self.connected.is_set():  # the session worked: reconnect fast, not with old backoff
+                backoff = 1.0
             self.connected.clear()
             if stop.is_set():
                 break
@@ -146,12 +150,16 @@ class IrcClient:
             backoff = min(backoff * 2, 60)
 
     async def _session(self, stop: asyncio.Event):
-        reader, writer = await asyncio.open_connection(HOST, PORT, ssl=ssl.create_default_context())
+        # a connect attempt right after the Mac wakes can hang for many minutes without a timeout
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(HOST, PORT, ssl=ssl.create_default_context()), CONNECT_TIMEOUT
+        )
 
         async def send(line: str):
             writer.write((line + "\r\n").encode())
             await writer.drain()
 
+        read: asyncio.Future | None = None
         try:
             await send("CAP REQ :twitch.tv/tags twitch.tv/commands")
             await send("PASS SCHMOOPIIE")
@@ -160,20 +168,29 @@ class IrcClient:
                 await send("JOIN " + ",".join("#" + c for c in self.channels[i : i + 20]))
             self.connected.set()
             log.info("IRC joined %s", ", ".join(self.channels))
+            probing = False
+            read = asyncio.ensure_future(reader.readline())
             while not stop.is_set():
-                read = asyncio.ensure_future(reader.readline())
                 stopper = asyncio.ensure_future(stop.wait())
                 done, _ = await asyncio.wait(
-                    {read, stopper}, timeout=360, return_when=asyncio.FIRST_COMPLETED
+                    {read, stopper},
+                    timeout=PONG_TIMEOUT if probing else IDLE_PROBE,
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
                 if stopper in done:
                     read.cancel()
                     return
                 stopper.cancel()
-                if not done:  # Twitch pings every ~5 min; silence means a dead socket
-                    read.cancel()
-                    raise TimeoutError("no data from IRC for 360s")
+                if not done:  # quiet socket: ask the server; no answer means it is dead
+                    if probing:
+                        read.cancel()
+                        raise TimeoutError(f"no PONG from IRC within {PONG_TIMEOUT}s")
+                    probing = True
+                    await send("PING :clipper")
+                    continue
+                probing = False
                 raw = read.result()
+                read = asyncio.ensure_future(reader.readline())
                 if not raw:
                     raise ConnectionResetError("IRC closed connection")
                 msg = parse_line(raw.decode("utf-8", errors="replace"))
@@ -186,4 +203,6 @@ class IrcClient:
                 elif (row := to_chat_row(msg, int(time.time() * 1000))) is not None:
                     self.on_row(row)
         finally:
+            if read is not None and not read.done():
+                read.cancel()
             writer.close()

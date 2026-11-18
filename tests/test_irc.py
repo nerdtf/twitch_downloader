@@ -76,3 +76,39 @@ def test_non_chat_lines_ignored():
 def test_missing_sent_ts_falls_back_to_recv():
     row = to_chat_row(parse_line(":a!a@a PRIVMSG #c :hi"), recv_ms=42)
     assert row["sent_ms"] == 42 and row["tags"] is None
+
+
+async def test_silent_socket_gets_pinged_then_dropped(monkeypatch):
+    """A socket that stays silent after the Mac wakes must be detected in seconds, not minutes."""
+    import asyncio
+
+    from clipper.chat import irc
+
+    sent: list[str] = []
+
+    class Writer:
+        def write(self, b):
+            sent.append(b.decode().strip())
+
+        async def drain(self):
+            pass
+
+        def close(self):
+            pass
+
+    class SilentReader:
+        async def readline(self):
+            await asyncio.sleep(3600)
+
+    async def fake_open(*a, **k):
+        return SilentReader(), Writer()
+
+    monkeypatch.setattr(irc.asyncio, "open_connection", fake_open)
+    monkeypatch.setattr(irc, "IDLE_PROBE", 0.05)
+    monkeypatch.setattr(irc, "PONG_TIMEOUT", 0.05)
+    client = irc.IrcClient(["buster"], on_row=lambda r: None)
+    import pytest
+
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(client._session(asyncio.Event()), 2)
+    assert "PING :clipper" in sent

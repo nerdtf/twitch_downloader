@@ -13,7 +13,6 @@ from clipper.judge.transcribe import Word
 
 FONT = "/System/Library/Fonts/Supplemental/Arial Black.ttf"
 BAND_W, BAND_H = 1080, 360
-SUB_Y = 1240  # top of the subtitle band in the 1080x1920 frame
 WHITE, YELLOW, BLACK = (255, 255, 255, 255), (255, 214, 0, 255), (0, 0, 0, 255)
 
 
@@ -55,10 +54,10 @@ def _fit_font(
     return ImageFont.truetype(FONT, size)
 
 
-def render_chunk(chunk: Chunk, highlight: int | None, out: Path, size: int = 92) -> Path:
+def render_chunk(chunk: Chunk, highlight: int | None, out: Path, size: int = 72) -> Path:
     img = Image.new("RGBA", (BAND_W, BAND_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    words = [w.text.strip().upper() for w in chunk.words]
+    words = [w.text.strip().upper().rstrip(".,") or w.text.strip() for w in chunk.words]
     font = _fit_font(d, " ".join(words), BAND_W - 80, size)
     space = d.textlength(" ", font=font)
     total = sum(d.textlength(w, font=font) for w in words) + space * (len(words) - 1)
@@ -70,7 +69,7 @@ def render_chunk(chunk: Chunk, highlight: int | None, out: Path, size: int = 92)
             font=font,
             fill=YELLOW if i == highlight else WHITE,
             anchor="lm",
-            stroke_width=8,
+            stroke_width=6,
             stroke_fill=BLACK,
         )
         x += d.textlength(w, font=font) + space

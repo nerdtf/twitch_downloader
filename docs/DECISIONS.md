@@ -2,6 +2,18 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-18 (night)
+- **Speech-to-text: Parakeet TDT 0.6B v3 (parakeet-mlx)** instead of Whisper large-v3-turbo. Owner:
+  subtitles miss words. On 6 live windows Parakeet kept slang/swearing Whisper dropped, did not
+  "translate" English game dialogue into invented Russian, and is ~25x faster than Whisper large
+  (6 s vs 160 s for 6 windows). Whisper turbo stays as fallback. GigaAM (best for Russian) not
+  tested: installing from GitHub was blocked here; worth a try later. Paid API possible later.
+- **Subtitles** under the webcam (split) / under the frame (fit_blur), font 92 -> 72.
+- **Chat gaps were the Mac sleeping** (pmset: "Clamshell Sleep" 18:24 with the lid closed) — video
+  stopped too. While connected, no messages are lost (independent listener: 896/896, 110/110).
+  IRC now: 20 s connect timeout (one reconnect hung 16 min), backoff reset after a good session,
+  PING probe after 60 s of silence (dead socket found in ~75 s instead of 6 min).
+
 ## 2026-11-18 (evening, after the first owner review: ~80% of clips rejected)
 - **Chat decides what is funny.** Laugh words get half the weight; hype/W, message rate and viewer
   clips 0.15 each; loudness 0.05 (tiebreaker). Moments where chat does not laugh are multiplied

@@ -1,4 +1,9 @@
-"""Local speech-to-text (mlx-whisper on Apple Silicon) with word timestamps, cached on disk."""
+"""Local speech-to-text on Apple Silicon with word timestamps, cached on disk.
+
+Default: NVIDIA Parakeet TDT 0.6B v3 (parakeet-mlx) — free, ~25x faster than Whisper large, and on
+our stream audio it dropped fewer words and invented less than Whisper (2026-11-18 comparison,
+6 live windows). Whisper turbo is the fallback when Parakeet returns nothing.
+"""
 
 import hashlib
 import json
@@ -11,7 +16,9 @@ from clipper.config import REPO_ROOT
 from clipper.media.ffmpeg import extract_wav
 
 log = logging.getLogger(__name__)
-MODEL = "mlx-community/whisper-large-v3-turbo"
+MODEL = "mlx-community/parakeet-tdt-0.6b-v3"
+WHISPER = "mlx-community/whisper-large-v3-turbo"
+_PARAKEET = None
 CACHE = REPO_ROOT / "data/cache/transcripts"
 # Phrases Whisper invents on music/silence (it learned them from subtitle credits on YouTube).
 HALLUCINATIONS = re.compile(
@@ -59,6 +66,58 @@ class Transcript:
         return " ".join(out).strip()
 
 
+def _parakeet(wav: Path) -> dict:
+    global _PARAKEET
+    if _PARAKEET is None:
+        from parakeet_mlx import from_pretrained  # heavy import, only when needed
+
+        _PARAKEET = from_pretrained(MODEL)
+    # chunking also fixes empty output on some mixed-language windows
+    r = _PARAKEET.transcribe(str(wav), chunk_duration=30.0, overlap_duration=5.0)
+    words: list[dict] = []
+    for sent in r.sentences:
+        for tok in sent.tokens:
+            piece = tok.text
+            if not piece.strip() and not words:
+                continue
+            if piece.startswith(" ") or not words:  # SentencePiece: leading space = new word
+                if piece.strip():
+                    words.append({"text": piece.strip(), "start": float(tok.start),
+                                  "end": float(tok.end), "prob": 1.0})  # fmt: skip
+            else:
+                words[-1]["text"] += piece
+                words[-1]["end"] = float(tok.end)
+    words = [w for w in words if w["text"]]
+    return {"text": r.text.strip(), "language": "auto", "words": words}
+
+
+def _whisper(wav: Path, language: str, model: str) -> dict:
+    import mlx_whisper  # heavy import, only when needed
+
+    r = mlx_whisper.transcribe(
+        str(wav),
+        path_or_hf_repo=model,
+        word_timestamps=True,
+        language=language,
+        condition_on_previous_text=False,
+    )
+    kept = [s for s in r.get("segments", []) if keep_segment(s)]
+    return {
+        "text": " ".join(s.get("text", "").strip() for s in kept),
+        "language": r.get("language", language),
+        "words": [
+            {
+                "text": w["word"],
+                "start": float(w["start"]),
+                "end": float(w["end"]),
+                "prob": float(w.get("probability", 0)),
+            }
+            for s in kept
+            for w in s.get("words", [])
+        ],
+    }
+
+
 def transcribe_window(
     audio_src: Path, start: float, duration: float, language: str = "ru", model: str = MODEL
 ) -> Transcript:
@@ -70,34 +129,13 @@ def transcribe_window(
     if cache.exists():
         raw = json.loads(cache.read_text(encoding="utf-8"))
     else:
-        import mlx_whisper  # heavy import, only when needed
-
         wav = extract_wav(audio_src, cache.with_suffix(".wav"), start, duration)
         try:
-            r = mlx_whisper.transcribe(
-                str(wav),
-                path_or_hf_repo=model,
-                word_timestamps=True,
-                language=language,
-                condition_on_previous_text=False,
-            )
+            raw = _parakeet(wav) if "parakeet" in model else None
+            if not raw or not raw["words"]:
+                raw = _whisper(wav, language, WHISPER if "parakeet" in model else model)
         finally:
             wav.unlink(missing_ok=True)
-        kept = [s for s in r.get("segments", []) if keep_segment(s)]
-        raw = {
-            "text": " ".join(s.get("text", "").strip() for s in kept),
-            "language": r.get("language", language),
-            "words": [
-                {
-                    "text": w["word"],
-                    "start": float(w["start"]),
-                    "end": float(w["end"]),
-                    "prob": float(w.get("probability", 0)),
-                }
-                for s in r.get("segments", [])
-                for w in s.get("words", [])
-            ],
-        }
         CACHE.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
     return Transcript(raw["text"], [Word(**w) for w in raw["words"]], raw["language"])
