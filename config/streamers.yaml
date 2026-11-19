@@ -13,7 +13,7 @@ recorder:
   segment_seconds: 300
   helix_poll_seconds: 15          # Helix live check (needs TWITCH_CLIENT_ID/SECRET in .env)
   poll_seconds: 60                # fallback: try to open offline streams this often
-  min_free_gb: 25                 # disk guard: delete oldest unpinned segments below this
+  min_free_gb: 12                 # disk guard: delete oldest unpinned segments below this
   stall_seconds: 90               # restart pipeline if no bytes arrive for this long
   ttl_check_seconds: 600
 
