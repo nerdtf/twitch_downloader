@@ -26,9 +26,12 @@ stream-hour). Hostname below assumes `raspberrypi` — use yours.
    ```
 3. **Mac** — copy the secrets file to the Pi (never commit it):
    `scp .env <pi-user>@raspberrypi.local:~/twitch_downloader/.env`
+   With an external HDD (twitchpi: 4 TB exFAT at `/mnt/hdd`), put the video there:
+   `echo CLIPPER_DATA_DIR=/mnt/hdd/clipper/recordings >> ~/twitch_downloader/.env`
 4. **Pi** — install everything and start both services:
    `cd ~/twitch_downloader && bash deploy/pi/setup.sh`
-   It installs ffmpeg + uv, sizes the video window to the free disk (`CLIPPER_TTL_HOURS`), and
+   It installs ffmpeg + uv, sizes the video window to the free disk (`CLIPPER_TTL_HOURS`; a disk
+   ≥ 500 GB keeps up to 14 days so old moments can be re-cut), and
    installs `clipper-recorder` + `clipper-feed` as systemd services (start on boot).
 5. **Mac** — check the link: `uv run python -m clipper.mirror --once` → `mirror OK: {...}`
 6. **Mac** — switch the Mac from recording to mirroring (stops the Mac recorder):
