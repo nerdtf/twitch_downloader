@@ -173,9 +173,9 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
   windows it got slang/swearing right where Whisper turbo missed it, adds punctuation, and no
   longer invents Russian for English game dialogue (it drops English). ~1.9 s per 65 s window on
   Mac CPU. Whisper turbo: `CLIPPER_ASR=whisper`, and the fallback when GigaAM returns no words.
-- **Volume: render only final score >= 55, max 15 clips per streamer per day** (467 were rendered
-  on 11-19). On 229 labels >= 55 keeps 55 of 59 approvals; the score separates weakly, so the cap
-  does most of the work. Weak-chat moments (−30) fall below 55.
+- **Render only final score >= 55** (467 were rendered on 11-19). On 229 labels >= 55 keeps 55 of
+  59 approvals; weak-chat moments (−30) fall below it. **No daily cap** (owner: reviewing every clip
+  is how the scoring gets tuned).
 - **Webcam found per clip**, not only in fixed boxes: a face repeated across 7 frames (two Haar
   models; alt2 handles zloyn's headband), then the cam's still edges around it. zloyn moved his cam
   3 times in 2 days. Config boxes give the expected size and stay as the fallback.
