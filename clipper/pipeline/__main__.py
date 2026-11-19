@@ -214,9 +214,11 @@ def main() -> None:
     lv.add_argument("--min-score", type=float, default=0.35)
     for sp in (lv, bf := sub.add_parser("backfill")):
         sp.add_argument(
-            "--daily-cap", type=int, default=0, help="max clips/streamer/day, 0 = no limit"
+            "--daily-cap", type=int, default=15, help="max clips/streamer/day, 0 = no limit"
         )
-        sp.add_argument("--render-min", type=float, default=0, help="min final score to render")
+        # 2026-11-19, 229 labels: lowest approved scores 43 (buster) / 57 / 63; >=55 keeps 55 of 59
+        # approvals. On 11-19 the pipeline rendered 467 clips -> cap 15/streamer/day.
+        sp.add_argument("--render-min", type=float, default=55, help="min final score to render")
     bf.add_argument("--login", nargs="*", help="only these streamers")
     args = ap.parse_args()
     logging.basicConfig(

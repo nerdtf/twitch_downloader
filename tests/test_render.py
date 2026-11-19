@@ -145,3 +145,23 @@ def test_game_at_follows_category_changes(tmp_path):
     assert src.game_at(2000) == "Grand Theft Auto VI"
     assert src.game_at(6000) == "I'm Only Sleeping"
     assert src.game_at(9500) == "Grand Theft Auto VI"
+
+
+def test_locate_cam_finds_the_still_rectangle_around_the_face(monkeypatch):
+    import numpy as np
+
+    from clipper.render import facecam
+
+    rng = np.random.default_rng(0)
+    room = np.tile(np.linspace(150, 210, 450, dtype=np.uint8), (300, 1))  # still, smooth cam
+    frames = []
+    for _ in range(7):  # the game around it changes every frame
+        f = rng.integers(0, 255, (1080, 1920), dtype=np.uint8)
+        f = (f // 64 * 64).astype(np.uint8)
+        f[300:600, 1466:1916] = room
+        frames.append(f)
+    monkeypatch.setattr(facecam, "_face_cluster", lambda fr, need: (1690.0, 450.0, 110.0))
+    box, why = facecam.locate_cam(frames, (1460, 384, 460, 306))
+    assert box is not None, why
+    x, y, w, h = box
+    assert abs(x - 1466) <= 4 and abs(y - 300) <= 4 and abs(w - 450) <= 8 and abs(h - 300) <= 8
