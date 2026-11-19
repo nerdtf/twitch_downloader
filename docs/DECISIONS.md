@@ -168,3 +168,8 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
 - **"What was said" shows only words inside the clip** (it showed the judge's 65 s context).
 - **Weak-chat penalty**: <20 messages or <5% laughing in the 3–23 s reaction window → −0.3. On 227
   labels this held 3 of 59 approvals and 41 of 168 rejects.
+- **Subtitles/transcripts: GigaAM v3** (RNNT + punctuation, MIT) via the sherpa-onnx ONNX export
+  (GitHub release; no `trust_remote_code`, Sber's CDN cert is still expired). On the 6 comparison
+  windows it got slang/swearing right where Whisper turbo missed it, adds punctuation, and no
+  longer invents Russian for English game dialogue (it drops English). ~1.9 s per 65 s window on
+  Mac CPU. Whisper turbo: `CLIPPER_ASR=whisper`, and the fallback when GigaAM returns no words.

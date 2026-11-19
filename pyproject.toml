@@ -11,6 +11,7 @@ dependencies = [
     "pillow>=13.0.0",
     "pyyaml>=6.0",
     "requests>=2.32",
+    "sherpa-onnx>=1.12",
     "streamlink>=8.0",
 ]
 

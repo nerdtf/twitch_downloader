@@ -216,3 +216,14 @@ def test_transcript_text_between_keeps_only_clip_words():
         "a b c", [Word("до", 1, 2, 1), Word("в", 15, 16, 1), Word("после", 50, 51, 1)], "ru"
     )
     assert tr.text_between(10, 40) == "в"
+
+
+def test_gigaam_chunks_cut_at_quiet_points():
+    from clipper.judge.transcribe import _cut_points
+
+    sr = 16000
+    a = np.random.default_rng(0).normal(0, 0.3, 65 * sr).astype(np.float32)
+    a[int(22.0 * sr) : int(22.3 * sr)] = 0  # a pause inside the 20-25 s search zone
+    cuts = _cut_points(a, sr, 25.0)
+    assert cuts[0] == 0 and 22.0 <= cuts[1] / sr <= 22.3 and len(cuts) == 3
+    assert all(b - a_ <= 25 * sr for a_, b in zip(cuts, cuts[1:] + [len(a)], strict=True))
