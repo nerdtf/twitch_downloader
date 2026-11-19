@@ -16,7 +16,7 @@ from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from clipper.chat.lexicon import Lexicon
 from clipper.pipeline.produce import CLIPS, write_index
@@ -26,6 +26,7 @@ from clipper.store import Store
 log = logging.getLogger(__name__)
 PAGE = Path(__file__).with_name("review.html")
 CHAT_BEFORE, CHAT_AFTER = 10.0, 20.0  # chat lags the moment by ~3-10 s
+PAGE_SIZE = 100  # clips per page load; decide them and reload for the next batch
 DECISIONS = ("approved", "rejected")
 
 
@@ -59,12 +60,36 @@ def _event_offset(m: dict, start: float) -> float | None:
         return None
 
 
-def list_pending(store: Store, root: Path = CLIPS, lex: Lexicon | None = None) -> list[dict]:
-    lex = lex or Lexicon.load()
-    items = []
+def _pending_metas(root: Path) -> list[tuple[Path, dict]]:
+    out = []
     for meta_path in (root / "pending").glob("*/*/meta.json"):
-        m = json.loads(meta_path.read_text(encoding="utf-8"))
-        d = meta_path.parent
+        try:
+            out.append((meta_path.parent, json.loads(meta_path.read_text(encoding="utf-8"))))
+        except (OSError, ValueError):
+            continue
+    out.sort(key=lambda x: -x[1].get("score", 0))
+    return out
+
+
+def pending_counts(root: Path = CLIPS) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for d in (root / "pending").glob("*/*/meta.json"):
+        counts[d.parent.parent.name] = counts.get(d.parent.parent.name, 0) + 1
+    return counts
+
+
+def list_pending(
+    store: Store,
+    root: Path = CLIPS,
+    lex: Lexicon | None = None,
+    login: str | None = None,
+    limit: int | None = None,
+) -> list[dict]:
+    """Pending clips, best score first; only the first `limit` get chat/DB details."""
+    lex = lex or Lexicon.load()
+    metas = [(d, m) for d, m in _pending_metas(root) if not login or d.parent.name == login]
+    items = []
+    for d, m in metas[:limit]:
         start, end = m.get("start_epoch", 0), m.get("end_epoch", 0)
         cid = candidate_id(d)
         row = (
@@ -96,7 +121,6 @@ def list_pending(store: Store, root: Path = CLIPS, lex: Lexicon | None = None) -
                 "chat": _chat(store, lex, m.get("login", ""), start, end),
             }
         )
-    items.sort(key=lambda x: -x["score"])
     return items
 
 
@@ -118,6 +142,25 @@ def decide(store: Store, rel_dir: str, decision: str, note: str, root: Path = CL
     cid = candidate_id(dst)
     if cid is not None:
         record_label(store, cid, decision, note, dst)
+    write_index(root)
+    return dst
+
+
+def undo(store: Store, rel_dir: str, root: Path = CLIPS) -> Path:
+    """Put a decided clip (approved|rejected/<login>/<id>) back to pending and drop its label."""
+    src = (root / rel_dir).resolve()
+    if src.parent.parent not in {(root / d).resolve() for d in DECISIONS} or not src.is_dir():
+        raise ValueError(f"not a decided clip: {rel_dir}")
+    dst = root / "pending" / src.parent.name / src.name
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dst))
+    (dst / "note.txt").unlink(missing_ok=True)
+    cid = candidate_id(dst)
+    if cid is not None:
+        store.conn.execute("DELETE FROM labels WHERE candidate_id=?", (cid,))
+        store.conn.execute(
+            "UPDATE candidates SET status='rendered', clip_dir=? WHERE id=?", (str(dst), cid)
+        )
     write_index(root)
     return dst
 
@@ -148,7 +191,12 @@ class _Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             return self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         if path == "/api/clips":
-            return self._json(200, list_pending(self.store, self.root))
+            q = parse_qs(urlparse(self.path).query)
+            login = (q.get("login") or [""])[0] or None
+            counts = pending_counts(self.root)
+            clips = list_pending(self.store, self.root, login=login, limit=PAGE_SIZE)
+            total = counts.get(login, 0) if login else sum(counts.values())
+            return self._json(200, {"total": total, "counts": counts, "clips": clips})
         if path.startswith("/clips/"):
             return self._file(path[len("/clips/") :])
         self._send(404, b"not found", "text/plain")
@@ -180,10 +228,15 @@ class _Handler(BaseHTTPRequestHandler):
         )
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/decide":
+        path = urlparse(self.path).path
+        if path not in ("/api/decide", "/api/undo"):
             return self._send(404, b"not found", "text/plain")
         try:
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            if path == "/api/undo":
+                dst = undo(self.store, req.get("dir", ""), self.root)
+                log.info("undo %s", dst)
+                return self._json(200, {"ok": True, "dir": str(dst.relative_to(self.root))})
             dir_, dec, note = req.get("dir", ""), req.get("decision", ""), req.get("note", "")
             dst = decide(self.store, dir_, dec, note, self.root)
         except (ValueError, json.JSONDecodeError) as e:

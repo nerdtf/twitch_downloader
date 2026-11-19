@@ -8,46 +8,78 @@
   :root {
     --bg: #0f1012; --panel: #17191c; --line: #26292e; --text: #e8e8ea; --muted: #8b8f97;
     --accent: #9b7bff; --ok: #2fbf71; --bad: #e5484d; --laugh: #f5c542; --hype: #ff8a3d;
+    --head: 52px;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, system-ui, sans-serif; }
-  header { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-           padding: 12px 16px; background: rgba(15,16,18,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 16px; margin: 0 8px 0 0; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, system-ui, sans-serif; overflow: hidden; }
+  header { height: var(--head); display: flex; gap: 12px; align-items: center; padding: 0 16px;
+           background: rgba(15,16,18,.92); border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
+  header h1 { font-size: 16px; margin: 0 4px 0 0; }
   header .count { color: var(--muted); }
-  select, button, textarea { font: inherit; color: inherit; }
+  header .keys { margin-left: auto; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid #3a3f47; border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: var(--text); background: #1d2024; }
+  select, button, input { font: inherit; color: inherit; }
   select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
-  main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 20px; }
-  .card { display: grid; grid-template-columns: 300px 1fr 340px; gap: 16px; background: var(--panel);
-          border: 1px solid var(--line); border-radius: 12px; padding: 14px; transition: opacity .3s, transform .3s; }
-  .card.gone { opacity: 0; transform: translateX(40px); }
-  @media (max-width: 1050px) { .card { grid-template-columns: 300px 1fr; } .chat { grid-column: 1 / -1; } }
-  @media (max-width: 680px) { .card { grid-template-columns: 1fr; } }
-  .player { position: relative; }
-  video { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 8px; display: block; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .btn { border: 1px solid var(--line); background: #202328; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .tally b { font-weight: 600; } .tally .a { color: var(--ok); } .tally .r { color: var(--bad); }
+
+  main { height: calc(100% - var(--head)); display: grid; grid-template-columns: minmax(240px, 320px) 1fr minmax(260px, 360px);
+         gap: 16px; padding: 16px; }
+  @media (max-width: 1050px) { main { grid-template-columns: 1fr minmax(240px, 320px); } .info { display: none; } }
+  @media (max-width: 700px) { body { overflow: auto; } main { height: auto; grid-template-columns: 1fr; } .chat { min-height: 360px; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-height: 0; overflow: auto; }
+
+  /* centre: the clip */
+  .stage:fullscreen { background: var(--bg); padding: 16px; }
+  .stage { position: relative; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+  .cardwrap { position: relative; height: calc(100% - 64px); aspect-ratio: 9/16; max-width: 100%; touch-action: pan-y;
+              transition: transform .25s ease, opacity .25s ease; }
+  .cardwrap.drag { transition: none; }
+  .cardwrap.out-r { transform: translateX(120%) rotate(12deg); opacity: 0; }
+  .cardwrap.out-l { transform: translateX(-120%) rotate(-12deg); opacity: 0; }
+  .cardwrap.in { transform: scale(.96); opacity: 0; transition: none; }
+  video { width: 100%; height: 100%; background: #000; border-radius: 12px; display: block; object-fit: contain; }
+  .stamp { position: absolute; top: 28px; padding: 4px 12px; border: 3px solid; border-radius: 8px; font-weight: 800; font-size: 26px;
+           letter-spacing: .08em; opacity: 0; pointer-events: none; transition: opacity .1s; }
+  .stamp.ok { left: 20px; color: var(--ok); border-color: var(--ok); transform: rotate(-14deg); }
+  .stamp.bad { right: 20px; color: var(--bad); border-color: var(--bad); transform: rotate(14deg); }
+  .badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); border-radius: 999px;
+           padding: 2px 10px; font-size: 12px; pointer-events: none; }
+  .bar-under { height: 64px; width: 100%; display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .btn { border: 1px solid var(--line); background: #202328; border-radius: 8px; padding: 7px 12px; cursor: pointer; }
   .btn:hover:not(:disabled) { border-color: #3a3f47; }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
-  .btn.ok { background: var(--ok); border-color: var(--ok); color: #04150b; font-weight: 600; }
-  .btn.bad { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 600; }
+  .btn.big { padding: 10px 22px; font-size: 16px; font-weight: 700; border-radius: 999px; }
+  .btn.ok { background: var(--ok); border-color: var(--ok); color: #04150b; }
+  .btn.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .btn kbd { margin-left: 6px; background: rgba(0,0,0,.18); border-color: rgba(0,0,0,.3); color: inherit; }
+
+  /* reason sheet */
+  .sheet { position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); width: min(440px, 100%); z-index: 4;
+           background: #1b1d21; border: 1px solid var(--line); border-radius: 14px; padding: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.5); display: none; }
+  .sheet.show { display: block; }
+  .sheet h4 { margin: 0 0 8px; font-size: 13px; }
+  .sheet.ok h4 { color: var(--ok); } .sheet.bad h4 { color: var(--bad); }
+  .reason { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; border-radius: 7px;
+            border: 1px solid transparent; background: none; cursor: pointer; }
+  .reason:hover, .reason.sel { background: #24272d; border-color: #3a3f47; }
+  .sheet input { width: 100%; margin-top: 8px; background: #101114; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .sheet .hint { margin-top: 6px; }
+
+  /* side panels */
   .meta { color: var(--muted); }
   .score { font-size: 22px; font-weight: 700; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
-  .fam { display: grid; grid-template-columns: 70px 1fr 44px; gap: 8px; align-items: center; margin: 3px 0; }
-  .bar { height: 8px; background: #23262b; border-radius: 4px; overflow: hidden; }
-  .bar i { display: block; height: 100%; background: var(--accent); }
+  .fam { display: grid; grid-template-columns: 64px 1fr 44px; gap: 8px; align-items: center; margin: 3px 0; }
+  .fbar { height: 8px; background: #23262b; border-radius: 4px; overflow: hidden; }
+  .fbar i { display: block; height: 100%; background: var(--accent); }
   .fam .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
   .hint { color: var(--muted); font-size: 12px; }
-  .transcript { max-height: 120px; overflow: auto; color: #cfd0d4; font-size: 13px; background: #121316; padding: 8px; border-radius: 6px; }
-  textarea { width: 100%; min-height: 56px; resize: vertical; background: #101114; border: 1px solid var(--line);
-             border-radius: 8px; padding: 8px; }
-  textarea.need { border-color: var(--bad); }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
-  .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); background: #1d2024; cursor: pointer; }
-  .chip:hover { border-color: var(--accent); }
-  .chat { display: flex; flex-direction: column; min-height: 0; }
-  .chatlog { flex: 1; min-height: 300px; max-height: 560px; overflow: auto; background: #121316; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+  .transcript { max-height: 160px; overflow: auto; color: #cfd0d4; font-size: 13px; background: #121316; padding: 8px; border-radius: 6px; }
+  .caption { white-space: pre-wrap; font-size: 12px; color: #cfd0d4; background: #121316; padding: 8px; border-radius: 6px; }
+  .chat { display: flex; flex-direction: column; overflow: hidden; }
+  .chatlog { flex: 1; min-height: 0; overflow: auto; background: #121316; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
   .msg { padding: 1px 4px; border-radius: 4px; cursor: pointer; display: flex; gap: 6px; }
   .msg:hover { background: #1c1f24; }
   .msg .ts { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; width: 38px; }
@@ -62,8 +94,7 @@
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #24272d; border: 1px solid var(--line);
            padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
   .toast.show { opacity: 1; }
-  .empty { text-align: center; color: var(--muted); padding: 80px 0; }
-  .caption { white-space: pre-wrap; font-size: 12px; color: #cfd0d4; background: #121316; padding: 8px; border-radius: 6px; }
+  .empty { grid-column: 1 / -1; align-self: center; text-align: center; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -71,171 +102,301 @@
   <h1>Clip review</h1>
   <span class="count" id="count"></span>
   <select id="who"><option value="">All streamers</option></select>
-  <span class="hint">Comment is required. Chat follows the video: grey = after current moment, click a line to jump there.</span>
+  <span class="tally" id="tally"></span>
+  <span class="keys"><kbd>→</kbd> approve · <kbd>←</kbd> reject · then <kbd>1</kbd>–<kbd>9</kbd> reason ·
+    <kbd>Space</kbd> play · <kbd>S</kbd> speed · <kbd>J</kbd>/<kbd>L</kbd> ±5 s · <kbd>M</kbd> moment ·
+    <kbd>N</kbd> skip · <kbd>U</kbd> undo · <kbd>F</kbd> fullscreen</span>
 </header>
-<main id="list"></main>
+<main id="main"></main>
 <div class="toast" id="toast"></div>
 
 <script>
 const FAMILY_HELP = {
-  chat: "message rate vs last 10 min",
-  laugh: "laugh words (ахах, хыхы…)",
-  audio: "loudness jump",
-  clips: "viewer-made Twitch clips",
+  chat: "message rate vs last 10 min", laugh: "laugh words (ахах, хыхы…)", hype: "hype words / W spam",
+  audio: "loudness jump", clips: "viewer-made Twitch clips",
 };
-const REJECT = ["not funny", "no context", "streamer not main", "bad crop / timing", "boring / quiet", "chat not laughing", "stream start / tech issue", "politics / drama", "ads / giveaway"];
-const APPROVE = ["funny", "strong reaction", "good hook", "epic moment", "funny only in part (trim)"];
+const REASONS = {
+  rejected: ["not funny", "no context", "boring / quiet", "streamer not main", "bad crop / timing",
+             "chat not laughing", "stream start / tech issue", "politics / drama", "ads / giveaway"],
+  approved: ["funny", "strong reaction", "epic moment", "good hook", "funny only in part (trim)"],
+};
+const SPEEDS = [1, 1.5, 2, 2.5];
 const CHAT_LAG = 6; // chat reacts ~6 s after the moment
-let clips = [];
+const SWIPE = 120;  // px of drag / trackpad scroll that counts as a swipe
+
+let clips = [], total = 0, cur = null, undoStack = [], tally = { approved: 0, rejected: 0 }, busy = false;
+let speed = 2;
+try { speed = parseFloat(localStorage.getItem("speed")) || 2; } catch (e) {}
 
 const $ = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const fmt = s => (s < 0 ? "-" : "") + Math.floor(Math.abs(s) / 60) + ":" + String(Math.floor(Math.abs(s) % 60)).padStart(2, "0");
-function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2200); }
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2200); }
+const src = c => "/clips/" + c.dir + "/clip.mp4";
 
+// ---------- data
 async function load() {
-  const r = await fetch("/api/clips");
-  clips = await r.json();
-  const who = document.getElementById("who"), cur = who.value;
+  const who = document.getElementById("who"), sel = who.value;
+  const r = await fetch("/api/clips" + (sel ? "?login=" + encodeURIComponent(sel) : ""));
+  const data = await r.json();
+  clips = data.clips; total = data.total;
   who.length = 1;
-  [...new Set(clips.map(c => c.login))].sort().forEach(l => who.add(new Option(l, l)));
-  who.value = cur;
-  render();
+  who.options[0].text = `All streamers (${Object.values(data.counts).reduce((a, b) => a + b, 0)})`;
+  Object.keys(data.counts).sort().forEach(l => who.add(new Option(`${l} (${data.counts[l]})`, l)));
+  who.value = sel;
+  show(clips[0] || null);
 }
 
-function render() {
-  const who = document.getElementById("who").value;
-  const list = document.getElementById("list");
-  list.replaceChildren();
-  const shown = clips.filter(c => !who || c.login === who);
-  document.getElementById("count").textContent = `${shown.length} pending`;
-  if (!shown.length) { list.append($("div", "empty", "No pending clips. New ones appear here while streams are live — reload later.")); return; }
-  shown.forEach(c => list.append(card(c)));
+function updateCount() {
+  const left = clips.length;
+  document.getElementById("count").textContent = total > left
+    ? `${left} in this batch · ${total} pending` : `${total} pending`;
+  document.getElementById("tally").innerHTML = (tally.approved + tally.rejected)
+    ? `this session: <b class="a">${tally.approved} ✓</b> <b class="r">${tally.rejected} ✕</b>` : "";
 }
 
-function card(c) {
-  const el = $("section", "card");
+// ---------- view
+let v, wrap, sheet, preloadV;
+function show(c, from = "in") {
+  cur = c;
+  const main = document.getElementById("main");
+  main.replaceChildren();
+  updateCount();
+  if (!c) {
+    main.append($("div", "empty", total > 0 ? "Batch done — loading the next one…" : "No pending clips. New ones appear here while streams are live — reload later."));
+    if (total > 0) setTimeout(() => load(), 300);
+    return;
+  }
+  main.append(infoPanel(c), stage(c), chatPanel(c));
+  if (from === "in") { wrap.classList.add("in"); requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.remove("in"))); }
+  // preload the next clip so it starts instantly
+  const next = clips[1];
+  if (next) { preloadV = preloadV || document.createElement("video"); preloadV.preload = "auto"; preloadV.muted = true; preloadV.src = src(next); }
+}
 
-  // --- player
-  const left = $("div", "player");
-  const v = document.createElement("video");
-  v.src = "/clips/" + c.dir + "/clip.mp4"; v.controls = true; v.preload = "metadata"; v.playsInline = true;
-  const ctl = $("div", "row"); ctl.style.marginTop = "8px";
-  const fs = $("button", "btn", "⛶ Fullscreen");
-  fs.onclick = () => (v.requestFullscreen || v.webkitEnterFullscreen || v.webkitRequestFullscreen).call(v);
-  const ev = $("button", "btn", "▶ Moment");
-  ev.title = "Jump to the detected moment";
-  ev.onclick = () => { v.currentTime = Math.max((c.event_offset ?? 0) - 3, 0); v.play(); };
-  ctl.append(fs, ev);
-  left.append(v, ctl);
+function stage(c) {
+  const st = $("div", "stage");
+  wrap = $("div", "cardwrap");
+  v = document.createElement("video");
+  v.src = src(c); v.controls = true; v.playsInline = true; v.autoplay = true; v.preload = "auto";
+  v.addEventListener("loadedmetadata", () => { v.playbackRate = speed; });
+  v.addEventListener("ratechange", () => { badge.textContent = `${v.playbackRate}×`; });
+  v.play().catch(() => {});
+  const okS = $("div", "stamp ok", "APPROVE"), badS = $("div", "stamp bad", "REJECT");
+  const badge = $("div", "badge", `${speed}×`);
+  wrap.append(v, okS, badS, badge);
+  wrap._stamps = [okS, badS];
 
-  // --- info + decision
-  const mid = $("div");
+  sheet = $("div", "sheet");
+  const bar = $("div", "bar-under");
+  const rej = $("button", "btn big bad"); rej.innerHTML = "✕ Reject<kbd>←</kbd>"; rej.onclick = () => openSheet("rejected");
+  const app = $("button", "btn big ok"); app.innerHTML = "✓ Approve<kbd>→</kbd>"; app.onclick = () => openSheet("approved");
+  const und = $("button", "btn", "↶ Undo"); und.title = "U"; und.disabled = !undoStack.length; und.onclick = doUndo;
+  const skip = $("button", "btn", "Skip"); skip.title = "N — move to the end of this batch"; skip.onclick = doSkip;
+  bar.append(und, rej, app, skip);
+  st.append(wrap, sheet, bar);
+  bindSwipe(wrap);
+  return st;
+}
+
+function infoPanel(c) {
+  const p = $("div", "panel info");
   const top = $("div", "row");
-  top.append($("span", "score", c.score.toFixed(1)), $("b", null, c.login),
-             $("span", "meta", `${Math.round(c.duration)} s · ${c.event_utc.slice(0, 16).replace("T", " ")} UTC`));
-  mid.append(top);
-  if (c.layout) mid.append($("div", "hint", `Layout: ${c.layout} — ${c.layout_reason}`));
-  if (c.stream_title) mid.append($("div", "meta", c.stream_title));
+  top.append($("span", "score", c.score.toFixed(1)), $("b", null, c.login));
+  p.append(top, $("div", "meta", `${Math.round(c.duration)} s · ${c.event_utc.slice(0, 16).replace("T", " ")} UTC`));
+  if (c.stream_title) p.append($("div", "meta", c.stream_title));
+  if (c.layout) p.append($("div", "hint", `Layout: ${c.layout} — ${c.layout_reason}`));
 
-  mid.append($("h3", null, "Why this clip"));
+  p.append($("h3", null, "Why this clip"));
   const j = c.judgement;
-  mid.append($("div", null, j ? (j.reason || "LLM judged") : "Not checked by the LLM yet (key not working) — picked by chat/audio signals only."));
+  p.append($("div", "hint", j ? (j.reason || "LLM judged") : "Picked by chat/audio signals (LLM off)."));
   const fams = Object.entries(c.families || {});
   const max = Math.max(4, ...fams.map(([, x]) => x));
   fams.forEach(([k, x]) => {
     const row = $("div", "fam");
-    const bar = $("div", "bar"), fill = $("i"); fill.style.width = Math.max(0, Math.min(100, 100 * x / max)) + "%"; bar.append(fill);
+    const fb = $("div", "fbar"), fill = $("i"); fill.style.width = Math.max(0, Math.min(100, 100 * x / max)) + "%"; fb.append(fill);
     const name = $("span", null, k); name.title = FAMILY_HELP[k] || "";
-    row.append(name, bar, $("span", "v", k === "clips" ? `${x}` : `${x.toFixed(1)}σ`));
-    mid.append(row);
+    row.append(name, fb, $("span", "v", `${x.toFixed(1)}σ`));
+    p.append(row);
   });
-  mid.append($("div", "hint", "σ = how unusual vs. the last 10 minutes (2+ is notable). clips = viewer clips covering the moment."));
   const pen = Object.entries(c.penalties || {}).filter(([, x]) => x > 0);
-  if (pen.length) mid.append($("div", "hint", "Penalties: " + pen.map(([k, x]) => `${k} −${x}`).join(", ")));
-
-  if (c.transcript) {
-    mid.append($("h3", null, "What was said (auto transcript)"));
-    mid.append($("div", "transcript", c.transcript));
-  }
+  if (pen.length) p.append($("div", "hint", "Penalties: " + pen.map(([k, x]) => `${k} −${x}`).join(", ")));
+  if (c.transcript) { p.append($("h3", null, "What was said"), $("div", "transcript", c.transcript)); }
   if (c.caption) {
-    mid.append($("h3", null, "Caption"));
-    const cap = $("div", "caption", c.caption);
     const copy = $("button", "btn", "Copy caption"); copy.style.marginTop = "6px";
     copy.onclick = async () => { await navigator.clipboard.writeText(c.caption); toast("Caption copied"); };
-    mid.append(cap, copy);
+    p.append($("h3", null, "Caption"), $("div", "caption", c.caption), copy);
   }
+  return p;
+}
 
-  mid.append($("h3", null, "Your decision"));
-  const note = document.createElement("textarea");
-  note.placeholder = "Why? (required) — click reasons below or type your own";
-  const chips = $("div", "chips");
-  const addChip = (text, kind) => {
-    const ch = $("span", "chip", (kind === "ok" ? "👍 " : "👎 ") + text);
-    ch.onclick = () => { note.value = note.value.trim() ? note.value.trim() + ", " + text : text; note.dispatchEvent(new Event("input")); note.focus(); };
-    chips.append(ch);
-  };
-  APPROVE.forEach(t => addChip(t, "ok")); REJECT.forEach(t => addChip(t, "bad"));
-  const btns = $("div", "row"); btns.style.marginTop = "8px";
-  const ok = $("button", "btn ok", "✓ Approve"), bad = $("button", "btn bad", "✕ Reject");
-  const sync = () => { const has = note.value.trim().length >= 2; ok.disabled = bad.disabled = !has; note.classList.toggle("need", !has && note.dataset.touched === "1"); };
-  note.oninput = () => { note.dataset.touched = "1"; sync(); };
-  sync();
-  const send = async (decision) => {
-    if (note.value.trim().length < 2) { note.dataset.touched = "1"; sync(); note.focus(); return; }
-    ok.disabled = bad.disabled = true;
-    const r = await fetch("/api/decide", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dir: c.dir, decision, note: note.value }) });
-    const res = await r.json();
-    if (!r.ok) { toast("Error: " + res.error); sync(); return; }
-    v.pause();
-    el.classList.add("gone");
-    setTimeout(() => { clips = clips.filter(x => x !== c); render(); }, 300);
-    toast(decision === "approved" ? "Approved → " + res.dir : "Rejected");
-  };
-  ok.onclick = () => send("approved"); bad.onclick = () => send("rejected");
-  btns.append(ok, bad);
-  mid.append(note, chips, btns);
-
-  // --- chat synced to the video
-  const right = $("div", "chat");
-  right.append($("h3", null, `Chat (${c.chat.length} messages)`));
+function chatPanel(c) {
+  const p = $("div", "panel chat");
+  p.append($("h3", null, `Chat (${c.chat.length} messages)`));
   const lg = $("div", "hint legend");
-  lg.innerHTML = '<span style="color:var(--laugh)">laugh</span><span style="color:var(--hype)">hype</span><span style="opacity:.5">ignored (bots, giveaway, greetings)</span>';
-  right.append(lg);
+  lg.innerHTML = '<span style="color:var(--laugh)">laugh</span><span style="color:var(--hype)">hype</span><span style="opacity:.5">ignored</span> · click a line to jump';
   const log = $("div", "chatlog");
   const lines = [];
   let markerDone = false;
   c.chat.forEach(m => {
     if (!markerDone && c.event_offset != null && m.t >= c.event_offset) {
-      log.append($("div", "marker", `▼ detected moment ${fmt(c.event_offset)} (chat reacts a few seconds later)`));
+      log.append($("div", "marker", `▼ detected moment ${fmt(c.event_offset)}`));
       markerDone = true;
     }
     const line = $("div", "msg" + (m.laugh ? " laugh" : m.hype ? " hype" : "") + (m.ignored ? " ign" : ""));
     line.append($("span", "ts", fmt(m.t)), $("span", "u", m.user), $("span", "tx", m.text));
-    line.title = "Jump video here";
     line.onclick = () => { v.currentTime = Math.max(m.t - CHAT_LAG, 0); v.play(); };
     log.append(line); lines.push([m.t, line]);
   });
-  if (!c.chat.length) log.append($("div", "hint", "No chat stored for this moment (VOD source or chat not captured)."));
-  right.append(log);
+  if (!c.chat.length) log.append($("div", "hint", "No chat stored for this moment."));
+  p.append(lg, log);
   let lastIdx = -1;
   v.addEventListener("timeupdate", () => {
     const now = v.currentTime + CHAT_LAG;
     let idx = -1;
     lines.forEach(([t, line], i) => { const fut = t > now; line.classList.toggle("future", fut); if (!fut) idx = i; });
-    if (idx !== lastIdx && idx >= 0 && !v.paused) {
-      const l = lines[idx][1];
-      log.scrollTop = l.offsetTop - log.offsetTop - log.clientHeight + 40;
-    }
+    if (idx !== lastIdx && idx >= 0 && !v.paused) log.scrollTop = lines[idx][1].offsetTop - log.offsetTop - log.clientHeight + 40;
     lastIdx = idx;
   });
-
-  el.append(left, mid, right);
-  return el;
+  return p;
 }
 
-document.getElementById("who").onchange = render;
-load().catch(e => { document.getElementById("list").replaceChildren($("div", "empty", "Cannot load clips: " + e)); });
+// ---------- decide
+let sheetKind = null;
+function openSheet(kind) {
+  if (!cur || busy) return;
+  sheetKind = kind;
+  sheet.className = "sheet show " + (kind === "approved" ? "ok" : "bad");
+  sheet.replaceChildren();
+  sheet.append($("h4", null, kind === "approved" ? "✓ Approve — why?" : "✕ Reject — why?"));
+  REASONS[kind].forEach((t, i) => {
+    const b = $("button", "reason"); b.append($("kbd", null, String(i + 1)), $("span", null, t));
+    b.onclick = () => submit(kind, t);
+    sheet.append(b);
+  });
+  const inp = document.createElement("input");
+  inp.placeholder = "or type your own and press Enter";
+  inp.onkeydown = e => {
+    e.stopPropagation();
+    if (e.key === "Enter" && inp.value.trim().length >= 2) submit(kind, inp.value.trim());
+    if (e.key === "Escape") closeSheet();
+  };
+  sheet.append(inp, $("div", "hint", "Esc to cancel"));
+  tilt(kind === "approved" ? SWIPE : -SWIPE, false);
+}
+function closeSheet() { sheetKind = null; if (sheet) sheet.className = "sheet"; tilt(0, false); }
+
+async function submit(decision, note) {
+  if (busy) return;
+  busy = true;
+  const c = cur;
+  const r = await fetch("/api/decide", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dir: c.dir, decision, note }) });
+  const res = await r.json();
+  busy = false;
+  if (!r.ok) { toast("Error: " + res.error); return; }
+  sheetKind = null; sheet.className = "sheet";
+  v.pause();
+  undoStack.push({ clip: c, dir: res.dir, decision });
+  tally[decision]++; total--;
+  clips = clips.filter(x => x !== c);
+  wrap.classList.remove("drag"); wrap.style.transform = "";
+  wrap.classList.add(decision === "approved" ? "out-r" : "out-l");
+  toast(decision === "approved" ? "✓ Approved — ready_to_post: " + res.dir : "✕ Rejected: " + note);
+  setTimeout(() => show(clips[0] || null), 230);
+}
+
+async function doUndo() {
+  const last = undoStack.pop();
+  if (!last || busy) return;
+  busy = true;
+  const r = await fetch("/api/undo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dir: last.dir }) });
+  const res = await r.json();
+  busy = false;
+  if (!r.ok) { toast("Undo failed: " + res.error); return; }
+  tally[last.decision]--; total++;
+  clips.unshift(last.clip);
+  toast("Undone — back in the queue");
+  show(last.clip);
+}
+
+function doSkip() {
+  if (!cur || clips.length < 2) return;
+  closeSheet();
+  clips = clips.filter(x => x !== cur).concat([cur]);
+  show(clips[0]);
+}
+
+// ---------- swipe (touch / mouse drag outside the video controls / trackpad two-finger swipe)
+function tilt(dx, dragging = true) {
+  if (!wrap) return;
+  wrap.classList.toggle("drag", dragging);
+  wrap.style.transform = dx ? `translateX(${dx * 0.6}px) rotate(${dx / 40}deg)` : "";
+  const [okS, badS] = wrap._stamps;
+  okS.style.opacity = Math.max(0, Math.min(1, dx / SWIPE));
+  badS.style.opacity = Math.max(0, Math.min(1, -dx / SWIPE));
+}
+function release(dx) {
+  if (dx >= SWIPE) openSheet("approved");
+  else if (dx <= -SWIPE) openSheet("rejected");
+  else tilt(0, false);
+}
+let x0 = null, dragDx = 0, suppressClickUntil = 0;
+function bindSwipe(el) {
+  el.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse" && e.clientY > v.getBoundingClientRect().bottom - 60) return; // native control bar
+    x0 = e.clientX; dragDx = 0;
+  });
+}
+window.addEventListener("pointermove", e => {
+  if (x0 == null || sheetKind) return;
+  dragDx = e.clientX - x0;
+  if (Math.abs(dragDx) > 8) tilt(dragDx);
+});
+window.addEventListener("pointerup", () => {
+  if (x0 == null) return;
+  x0 = null;
+  if (Math.abs(dragDx) > 8) { suppressClickUntil = Date.now() + 300; release(dragDx); }
+});
+window.addEventListener("click", e => { if (Date.now() < suppressClickUntil) { e.preventDefault(); e.stopPropagation(); } }, true);
+let wheelDx = 0, wheelT = null;
+window.addEventListener("wheel", e => {
+  if (!cur || sheetKind || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  if (e.target.closest && e.target.closest(".chatlog, .transcript")) return;
+  e.preventDefault(); // stop the browser's swipe-back navigation
+  wheelDx -= e.deltaX;
+  tilt(wheelDx);
+  clearTimeout(wheelT);
+  wheelT = setTimeout(() => { release(wheelDx); wheelDx = 0; }, 140);
+}, { passive: false });
+
+// ---------- keyboard
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (sheetKind) {
+    if (k === "Escape") return closeSheet();
+    const n = parseInt(k, 10);
+    if (n >= 1 && n <= REASONS[sheetKind].length) { e.preventDefault(); return submit(sheetKind, REASONS[sheetKind][n - 1]); }
+    if (k === "ArrowRight") return openSheet("approved");
+    if (k === "ArrowLeft") return openSheet("rejected");
+    if (k.length === 1 && /\S/.test(k)) { const inp = sheet.querySelector("input"); inp.focus(); return; } // start typing a custom reason
+  }
+  if (!cur) return;
+  const lk = k.toLowerCase();
+  if (k === "ArrowRight") { e.preventDefault(); openSheet("approved"); }
+  else if (k === "ArrowLeft") { e.preventDefault(); openSheet("rejected"); }
+  else if (k === " ") { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+  else if (lk === "s") { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] || 2; v.playbackRate = speed; try { localStorage.setItem("speed", speed); } catch (er) {} toast(`Speed ${speed}×`); }
+  else if (lk === "j") v.currentTime = Math.max(v.currentTime - 5, 0);
+  else if (lk === "l") v.currentTime = v.currentTime + 5;
+  else if (lk === "m") { v.currentTime = Math.max((cur.event_offset ?? 0) - 3, 0); v.play(); }
+  else if (lk === "n") doSkip();
+  else if (lk === "u") doUndo();
+  else if (lk === "f") { document.fullscreenElement ? document.exitFullscreen() : (st => (st.requestFullscreen || st.webkitRequestFullscreen).call(st))(wrap.parentElement); }
+});
+
+document.getElementById("who").onchange = e => { e.target.blur(); load(); };
+load().catch(e => { document.getElementById("main").replaceChildren($("div", "empty", "Cannot load clips: " + e)); });
 </script>
 </body>
 </html>

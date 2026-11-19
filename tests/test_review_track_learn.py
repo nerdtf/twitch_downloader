@@ -65,3 +65,24 @@ def test_review_server_decide_requires_note_and_moves(tmp_path):
     assert (dst / "note.txt").read_text(encoding="utf-8").strip() == "смешно"
     lab = store.conn.execute("SELECT decision, reason FROM labels WHERE candidate_id=7").fetchone()
     assert tuple(lab) == ("approved", "смешно")
+    from clipper.review.server import undo
+
+    with pytest.raises(ValueError):
+        undo(store, item["dir"], root)  # still a pending path -> refused
+    back = undo(store, "approved/buster/00007_20261119-2100", root)
+    assert back == d and d.is_dir() and not (d / "note.txt").exists()
+    assert store.conn.execute("SELECT COUNT(*) FROM labels").fetchone()[0] == 0
+
+
+def test_review_list_pending_limit_and_counts(tmp_path):
+    from clipper.review.server import list_pending, pending_counts
+
+    store = Store(tmp_path / "x.db")
+    root = tmp_path / "clips"
+    for i, (login, score) in enumerate([("a", 10), ("a", 30), ("b", 20)]):
+        d = root / f"pending/{login}/0000{i}_20261119-2100"
+        d.mkdir(parents=True)
+        (d / "meta.json").write_text(json.dumps({"login": login, "score": score}), "utf-8")
+    assert [c["score"] for c in list_pending(store, root, limit=2)] == [30, 20]
+    assert [c["score"] for c in list_pending(store, root, login="a")] == [30, 10]
+    assert pending_counts(root) == {"a": 2, "b": 1}
