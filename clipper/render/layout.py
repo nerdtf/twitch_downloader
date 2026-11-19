@@ -20,14 +20,23 @@ class Layout:
     content: Rect | None = None
     blur: list[Rect] = field(default_factory=list)
     content_zoom: float = 1.0
+    facecam_alts: list[Rect] = field(default_factory=list)  # other known cam spots (auto picks)
 
 
 def load_layout(login: str, path: Path = DEFAULT_PATH) -> Layout:
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
     merged = {**(raw.get("defaults") or {}), **((raw.get("streamers") or {}).get(login) or {})}
+    fc = merged.get("facecam") or []
+    # facecam: [x, y, w, h], or a list of them when the streamer moves the cam between scenes
+    cams = (
+        [tuple(r) for r in fc]
+        if fc and isinstance(fc[0], list | tuple)
+        else ([tuple(fc)] if fc else [])
+    )
     lay = Layout(
         kind=merged.get("layout", "fit_blur"),
-        facecam=tuple(merged["facecam"]) if merged.get("facecam") else None,
+        facecam=cams[0] if cams else None,
+        facecam_alts=cams[1:],
         content=tuple(merged["content"]) if merged.get("content") else None,
         blur=[tuple(r) for r in merged.get("blur") or []],
         content_zoom=float(merged.get("content_zoom", 1.0)),

@@ -118,3 +118,30 @@ def test_render_smoke(tmp_path):
     assert (info["width"], info["height"]) == (1080, 1920)
     assert abs(probe_duration(out["clip"]) - 4.0) < 0.2
     json.dumps({"ok": True})
+
+
+def test_facecam_list_gives_alternative_boxes(tmp_path):
+    from clipper.render.layout import load_layout
+
+    p = tmp_path / "l.yaml"
+    p.write_text(
+        "streamers:\n  z:\n    facecam: [[1, 2, 3, 4], [5, 6, 7, 8]]\n  b:\n    facecam: [0, 0, 9, 9]\n"
+    )
+    z, b = load_layout("z", p), load_layout("b", p)
+    assert z.facecam == (1, 2, 3, 4) and z.facecam_alts == [(5, 6, 7, 8)]
+    assert b.facecam == (0, 0, 9, 9) and b.facecam_alts == []
+
+
+def test_game_at_follows_category_changes(tmp_path):
+    from clipper.sources import RecordingSource
+    from clipper.store import Store
+
+    st = Store(tmp_path / "x.db")
+    rid = st.start_recording("evelone2004", tmp_path, 1000.0)
+    st.update_recording_meta(rid, "s", "t", "Grand Theft Auto VI", "x")
+    st.add_event("evelone2004", 5000.0, "game_change", {"game": "I'm Only Sleeping"})
+    st.add_event("evelone2004", 9000.0, "game_change", {"game": "Grand Theft Auto VI"})
+    src = RecordingSource(st, rid)
+    assert src.game_at(2000) == "Grand Theft Auto VI"
+    assert src.game_at(6000) == "I'm Only Sleeping"
+    assert src.game_at(9500) == "Grand Theft Auto VI"

@@ -172,3 +172,26 @@ def test_chat_speedup_counts_as_reaction():
         return max((c.score for c in stage1(sig, cfg, k=20) if abs(c.t - 890) <= 30), default=0.0)
 
     assert score_at(on) > score_at(off)
+
+
+def test_clip_grows_while_chat_keeps_laughing():
+    from clipper.chat.features import ChatSignals
+    from clipper.scoring.stage1 import clip_bounds
+
+    cfg = load_scoring_config()
+    n, t = 1200, 800
+
+    def sig_with(laugh_from, laugh_to):
+        laugh = np.full(n, 0.1, np.float32)
+        laugh[laugh_from:laugh_to] = 4.0
+        z = np.zeros(n, np.float32)
+        chat = ChatSignals(0, z + 1, laugh, z, z, [[]] * n, [[]] * n)
+        return Signals(t0=0, n=n, chat=chat)
+
+    pk = cfg["peaks"]
+    short = clip_bounds(sig_with(t + 4, t + 12), t, cfg)
+    assert short == (t - pk["pre_roll_seconds"], t + pk["post_roll_seconds"])
+    s, e = clip_bounds(sig_with(t + 4, t + 40), t, cfg)  # laughing for 36 s -> longer ending
+    assert e > t + pk["post_roll_seconds"] + 10 and e <= t + pk["max_post_roll_seconds"]
+    s, e = clip_bounds(sig_with(t - 30, t + 12), t, cfg)  # already laughing before -> earlier start
+    assert s < t - pk["pre_roll_seconds"] and s >= t - pk["max_pre_roll_seconds"]

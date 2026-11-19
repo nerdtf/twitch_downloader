@@ -48,3 +48,13 @@ peaks:
   min_gap_seconds: 90         # overlap gate: keep the higher of two peaks closer than this
   pre_roll_seconds: 25        # candidate window = [event - pre, event + post]
   post_roll_seconds: 12
+  # Owner: when chat laughs long before/after, the clip must be longer. The window grows while
+  # chat laugh+hype stays above mean + level*(reaction peak - mean); capped by max_*_roll.
+  max_pre_roll_seconds: 50
+  max_post_roll_seconds: 30
+  extend: {level: 0.35, min_peak: 0.5, max_gap_seconds: 4, tail_seconds: 3, setup_seconds: 15}
+
+# Twitch categories that are never clip material (owner, 2026-11-19: evelone's night stream ran
+# SpongeBob under "I'm Only Sleeping" -> every clip was "streamer not main"). Case-insensitive.
+skip_games:
+  - "I'm Only Sleeping"

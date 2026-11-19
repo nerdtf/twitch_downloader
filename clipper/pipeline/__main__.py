@@ -136,9 +136,12 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
         for c in stage1(sig, cfg, k=10)
         if warm <= sig.t0 + c.t <= now - settle and c.score >= min_score
     ]
+    skip_games = {g.lower() for g in cfg.get("skip_games") or []}
     fresh = []
     for c in settled:
         ev = sig.t0 + c.t
+        if skip_games and src.game_at(ev).lower() in skip_games:
+            continue  # e.g. "I'm Only Sleeping": cartoons on stream, streamer not main
         near = store.conn.execute(
             "SELECT 1 FROM candidates WHERE source=? AND ABS(event_epoch - ?) < 90", (src.key, ev)
         ).fetchone()

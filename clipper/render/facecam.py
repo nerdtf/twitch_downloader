@@ -67,12 +67,20 @@ def resolve_layout(
     if (game or "").strip().lower() in IRL_GAMES:
         return fit, f"IRL category ({game})"
     info = probe_video(video)
-    hits = 0
+    boxes = [lay.facecam, *lay.facecam_alts]
+    hits = [0] * len(boxes)
     for i in range(samples):
         at = offset + duration * (i + 0.5) / samples
         frame = grab_frame(video, at, info["width"], info["height"])
-        hits += frame is not None and face_in(frame, lay.facecam)
+        if frame is None:
+            continue
+        for k, box in enumerate(boxes):
+            hits[k] += face_in(frame, box)
+    best = max(range(len(boxes)), key=lambda k: hits[k])
     need = max(2, round(samples * 0.4))  # a stray false positive must not flip the layout
-    if hits >= need:
-        return replace(lay, kind="split"), f"face in facecam box {hits}/{samples}"
-    return fit, f"no face in facecam box ({hits}/{samples})"
+    where = f" (cam spot {best + 1}/{len(boxes)})" if len(boxes) > 1 else ""
+    if hits[best] >= need:
+        return replace(lay, kind="split", facecam=boxes[best]), (
+            f"face in facecam box {hits[best]}/{samples}{where}"
+        )
+    return fit, f"no face in facecam box ({hits[best]}/{samples})"

@@ -2,6 +2,21 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-19 (second review batch: ~140 labels)
+- **Skip categories (`skip_games`)**: evelone's night stream ran SpongeBob under "I'm Only
+  Sleeping" (02:30-08:43 UTC) and every clip from it was rejected "streamer not main". Moments are
+  dropped when the category *at the moment* (from `game_change` events) is in the list. The 102
+  pending clips from that window were moved to `data/clips/skipped/` (deleting was blocked for the
+  agent; owner can delete the folder) and marked `dropped / skip_game`.
+- **Clip length follows the chat**: default 25 s before / 12 s after; the end grows while chat
+  laugh+hype stays above mean + 0.35×(reaction peak − mean), the start moves earlier when chat was
+  already laughing before the moment; caps 50 s before / 30 s after. On the last 30 h: 35-45 s.
+- **Several webcam boxes per streamer** (`facecam` may be a list; auto picks the box with the
+  face). zloyn moved his cam lower on 2026-11-19 (box y 384-690), so his clips fell back to
+  fit_blur ("no face 0/7"). Now 7/8 frames hit.
+- **evelone co-streams with two others**: "streamer not main" cannot be told from chat; needs the
+  LLM/transcript check (who is talking) — next step when the judge is turned on.
+
 ## 2026-11-19 (Pi migration)
 - **The Pi records, the Mac clips; linked by a pull mirror, not a network share.** Pi runs
   `clipper.record` + `clipper.feed` (read-only HTTP on the LAN, shared token); the Mac runs

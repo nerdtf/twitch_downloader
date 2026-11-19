@@ -3,6 +3,7 @@ stage-2 judging, rendering — talks to sources only through this interface, so 
 where the media came from. Times are wall-clock UTC epoch seconds.
 """
 
+import json
 import logging
 import tempfile
 from dataclasses import dataclass
@@ -78,6 +79,20 @@ class RecordingSource(Source):
         self.store, self.rec_id, self.lexicon = store, rec_id, lexicon or Lexicon.load()
         self.key, self.login, self.t0 = f"rec:{rec_id}", r["login"], r["started_epoch"]
         self.title, self.game = r["title"] or "", r["game_name"] or ""
+
+    def game_at(self, epoch: float) -> str:
+        """Twitch category at that moment (streamers switch, e.g. to "I'm Only Sleeping")."""
+        r = self.store.conn.execute(
+            "SELECT data FROM events WHERE login=? AND kind='game_change' AND epoch BETWEEN ? AND ?"
+            " ORDER BY epoch DESC LIMIT 1",
+            (self.login, self.t0 - 60, epoch),
+        ).fetchone()
+        if r is not None:
+            try:
+                return json.loads(r["data"]).get("game") or ""
+            except (TypeError, ValueError):
+                pass
+        return self.game
 
     def signals(self, with_clips: bool = True, t_from=None, t_to=None) -> Signals:
         return recording_signals(self.store, self.rec_id, t_from, t_to, self.lexicon, with_clips)

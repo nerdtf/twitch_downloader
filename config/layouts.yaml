@@ -3,7 +3,8 @@
 #
 # layout:
 #   auto      - (default) split when a face is really inside `facecam` on the clip's frames,
-#               otherwise fit_blur. Handles IRL / BRB / changed scenes automatically.
+#               otherwise fit_blur. `facecam` may be a list of boxes (cam moved): the one with
+#               the face wins. Handles IRL / BRB / changed scenes automatically.
 #   split     - always: webcam on top, gameplay below (the crop slides off the webcam unless
 #               `content` is given).
 #   fit_blur  - always: whole 16:9 frame in the middle, blurred zoomed copy as background.
@@ -22,7 +23,9 @@ streamers:
     blur:
       - [1690, 0, 230, 620]            # right column: Winline / "получи бонусы" / RAMZES / promo plates
   zloyn:
-    facecam: [1474, 200, 446, 336]     # GTA scene: cam right side
+    facecam:                           # zloyn moves the cam; auto picks the box with the face
+      - [1460, 384, 460, 306]          # GTA, 2026-11-19: right side, lower
+      - [1474, 200, 446, 336]          # GTA, 2026-11-18: right side, higher
   mokrivskyi:
     facecam: [0, 268, 432, 245]        # from an older VOD; outdoors/IRL scenes fall back to fit_blur
     blur:

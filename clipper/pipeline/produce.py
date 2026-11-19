@@ -28,8 +28,9 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
     try:
         cut = source.video_for(j.start, j.end, work)
         hook = (j.judgement or {}).get("hook_line", "")
+        game = source.game_at(j.event) if hasattr(source, "game_at") else source.game
         lay, lay_why = resolve_layout(
-            load_layout(source.login), cut.path, cut.offset, j.end - j.start, source.game
+            load_layout(source.login), cut.path, cut.offset, j.end - j.start, game
         )
         log.info("candidate %s layout %s (%s)", j.cand_id, lay.kind, lay_why)
         result = render_clip(cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook)
@@ -49,7 +50,7 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
             "transcript": j.transcript,
             "subtitle_words": len(result["words"]),
             "stream_title": source.title,
-            "game": source.game,
+            "game": game,
             "layout": lay.kind,
             "layout_reason": lay_why,
         }

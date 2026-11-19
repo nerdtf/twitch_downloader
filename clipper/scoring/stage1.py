@@ -53,6 +53,50 @@ class Candidate:
         }
 
 
+def _run(active: np.ndarray, i: int, step: int, max_gap: int) -> int:
+    """Walk from i in `step` direction while `active` (gaps up to max_gap); last active index."""
+    last, gap, j = i, 0, i
+    while 0 <= j + step < len(active):
+        j += step
+        if active[j]:
+            last, gap = j, 0
+        else:
+            gap += 1
+            if gap > max_gap:
+                break
+    return last
+
+
+def clip_bounds(sig: Signals, t: int, cfg: dict) -> tuple[int, int]:
+    """Clip [start, end) around event second t. Default pre/post roll; longer when chat keeps
+    laughing after the reaction (end) or was already laughing before the moment (start)."""
+    pk = cfg["peaks"]
+    start, end = t - pk["pre_roll_seconds"], t + pk["post_roll_seconds"]
+    ext = pk.get("extend")
+    if ext and sig.chat is not None and sig.n > 0:
+        lag = cfg.get("chat_lag_seconds", 6)
+        r = tl.smooth((sig.chat.laugh + sig.chat.hype).astype(np.float32), 5)
+        a = max(t - cfg.get("baseline_seconds", 600), 0)
+        mu = float(np.mean(r[a:t])) if t > a else 0.0
+        rlag = cfg.get("reaction_lag_seconds", lag)
+        win = r[
+            min(t + rlag, sig.n - 1) : min(t + rlag + cfg.get("reaction_window_seconds", 20), sig.n)
+        ]
+        peak = float(win.max()) if len(win) else 0.0
+        if peak > mu + ext.get("min_peak", 0.5):
+            level = mu + ext.get("level", 0.35) * (peak - mu)  # "still laughing" = above this
+            active = r > level
+            p = min(t + rlag + int(np.argmax(win)), sig.n - 1)
+            gap = ext.get("max_gap_seconds", 4)
+            chat_end = _run(active, p, +1, gap)  # chat time -> event time: minus the lag
+            chat_start = _run(active, p, -1, gap)
+            end = max(end, chat_end - lag + ext.get("tail_seconds", 3))
+            start = min(start, chat_start - lag - ext.get("setup_seconds", 15))
+        start = max(start, t - pk.get("max_pre_roll_seconds", pk["pre_roll_seconds"]))
+        end = min(end, t + pk.get("max_post_roll_seconds", pk["post_roll_seconds"]))
+    return max(start, 0), min(end, sig.n)
+
+
 def family_series(sig: Signals, cfg: dict) -> dict[str, np.ndarray]:
     w, base, lag = cfg["window_seconds"], cfg["baseline_seconds"], cfg["chat_lag_seconds"]
     out: dict[str, np.ndarray] = {}
@@ -185,8 +229,7 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
                 families=fams,
                 fired=fired,
                 penalties=pens,
-                start=max(t - peaks_cfg["pre_roll_seconds"], 0),
-                end=min(t + peaks_cfg["post_roll_seconds"], sig.n),
+                **dict(zip(("start", "end"), clip_bounds(sig, t, cfg), strict=True)),
                 chat_stats=stats,
             )
         )
