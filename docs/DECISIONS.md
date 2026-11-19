@@ -157,3 +157,14 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
 - **Audio laughter model deferred.** Start with ffmpeg loudness; add PANNs (PyTorch/MPS) only if eval
   shows audio recall is the bottleneck. YAMNet = TensorFlow, painful on Apple Silicon.
 - **Use Twitch viewer clips as weak gold** for early eval (with the clip feature disabled to avoid leakage).
+
+## 2026-11-19 — after ~230 owner labels
+- **Chat was stored twice 00:39–11:15 on 2026-11-19**: two recorders ran at once (also two
+  recordings of the same stream → same moment clipped twice). The recorder now takes an exclusive
+  lock (`data/recorder.lock`); the review app de-duplicates chat; the live overlap check spans all
+  recordings of a streamer and also rejects overlapping clip windows.
+- **Stage-2 ignored the chat-based clip bounds** (every clip was still 25+12 = 37 s without the LLM).
+  Now the stage-1 window is used; the LLM's best_start/end still win when it runs.
+- **"What was said" shows only words inside the clip** (it showed the judge's 65 s context).
+- **Weak-chat penalty**: <20 messages or <5% laughing in the 3–23 s reaction window → −0.3. On 227
+  labels this held 3 of 59 approvals and 41 of 168 rejects.

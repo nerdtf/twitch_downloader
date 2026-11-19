@@ -42,6 +42,9 @@ penalties:
   copypasta_penalty: 0.3
   notices_per_window: 5       # sub/raid bursts above this -> penalty
   notices_penalty: 0.2
+  # 2026-11-19, 227 labels: reaction window (3-23 s after) with <20 msgs or <5% laugh messages
+  # held 3 of 59 approvals and 41 of 168 rejects. The penalty pushes those below --min-score.
+  weak_chat: {min_msgs: 20, min_laugh_share: 0.05, penalty: 0.3}
 
 peaks:
   smooth_seconds: 3

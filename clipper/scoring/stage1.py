@@ -219,6 +219,14 @@ def stage1(sig: Signals, cfg: dict, k: int = 40, use_clips: bool = True) -> list
                 pens["copypasta"] = pen["copypasta_penalty"]
             if stats["notices"] > pen["notices_per_window"]:
                 pens["notices"] = pen["notices_penalty"]
+            weak = pen.get("weak_chat") or {}
+            if weak:  # over the laugh family's reaction window, not the 10 s stats window
+                a = t + cfg.get("reaction_lag_seconds", lag)
+                b = a + cfg.get("reaction_window_seconds", w)
+                n_msgs = float(sig.chat.msgs[a:b].sum())
+                n_laugh = float(sig.chat.laugh[a:b].sum())
+                if n_msgs < weak["min_msgs"] or n_laugh < weak["min_laugh_share"] * n_msgs:
+                    pens["weak_chat"] = weak["penalty"]
         s = max(s - sum(pens.values()), 0.0)
         fams = {f: float(fam[f][t]) for f in fam}
         fired = [f for f, z in fams.items() if z * (cmul if f == "clips" else 1.0) >= thr]

@@ -17,8 +17,6 @@ from clipper.judge.llm import LLMJudge
 from clipper.pipeline.produce import render_judged, write_index
 from clipper.pipeline.stage2 import (
     CONTEXT_PRE,
-    DEFAULT_POST,
-    DEFAULT_PRE,
     Judged,
     insert_candidates,
     judge_candidates,
@@ -142,8 +140,11 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
         ev = sig.t0 + c.t
         if skip_games and src.game_at(ev).lower() in skip_games:
             continue  # e.g. "I'm Only Sleeping": cartoons on stream, streamer not main
-        near = store.conn.execute(
-            "SELECT 1 FROM candidates WHERE source=? AND ABS(event_epoch - ?) < 90", (src.key, ev)
+        a, b = sig.t0 + c.start, sig.t0 + c.end
+        near = store.conn.execute(  # any recording of this streamer: no clip of the same moment
+            "SELECT 1 FROM candidates WHERE login=? AND (ABS(event_epoch - ?) < 90"
+            " OR (start_epoch < ? AND end_epoch > ?))",
+            (src.login, ev, b, a),
         ).fetchone()
         if not near:
             c.t, c.start, c.end = (
@@ -178,7 +179,7 @@ def run_backfill(args) -> None:
         src = RecordingSource(store, int(r["source"].split(":")[1]))
         st2 = json.loads(r["stage2"] or "{}")
         jd = st2.get("judgement") or None
-        start, end = r["event_epoch"] - DEFAULT_PRE, r["event_epoch"] + DEFAULT_POST
+        start, end = r["start_epoch"], r["end_epoch"]  # stage-1 bounds
         if jd and 0 <= float(jd["best_start"]) < float(jd["best_end"]):
             a = r["event_epoch"] - CONTEXT_PRE
             start, end = a + float(jd["best_start"]), a + float(jd["best_end"])

@@ -32,8 +32,9 @@ DECISIONS = ("approved", "rejected")
 
 def _chat(store: Store, lex: Lexicon, login: str, start: float, end: float) -> list[dict]:
     rows = store.conn.execute(
-        "SELECT sent_ms, login, display_name, text FROM chat WHERE channel=? AND kind='msg'"
-        " AND sent_ms BETWEEN ? AND ? ORDER BY sent_ms",
+        "SELECT sent_ms, login, MAX(display_name) display_name, text FROM chat"
+        " WHERE channel=? AND kind='msg' AND sent_ms BETWEEN ? AND ?"
+        " GROUP BY sent_ms, login, text ORDER BY sent_ms",  # 2026-11-19 night: 2 recorders
         (login, int((start - CHAT_BEFORE) * 1000), int((end + CHAT_AFTER) * 1000)),
     ).fetchall()
     out = []

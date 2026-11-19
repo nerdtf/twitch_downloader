@@ -3,13 +3,14 @@
 import argparse
 import asyncio
 import contextlib
+import fcntl
 import logging
 import shutil
 import signal
 import time
 
 from clipper.chat.irc import IrcClient
-from clipper.config import load_config
+from clipper.config import REPO_ROOT, load_config
 from clipper.record.live_status import HelixWatcher
 from clipper.record.recorder import StreamRecorder
 from clipper.record.retention import run_retention
@@ -120,6 +121,13 @@ def cli() -> None:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    lock_path = REPO_ROOT / "data/recorder.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock = lock_path.open("w")
+    try:  # a second recorder would store every chat message twice
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit("another recorder is already running (data/recorder.lock)") from None
     asyncio.run(main(args.config, args.duration))
 
 

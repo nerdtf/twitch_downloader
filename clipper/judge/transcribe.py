@@ -56,6 +56,10 @@ class Transcript:
     def words_per_second(self, duration: float) -> float:
         return len(self.words) / duration if duration > 0 else 0.0
 
+    def text_between(self, lo: float, hi: float) -> str:
+        """Words spoken inside [lo, hi] seconds of the window (what the clip itself contains)."""
+        return " ".join(w.text.strip() for w in self.words if lo - 0.3 <= w.start < hi).strip()
+
     def timed_text(self, offset: float = 0.0, every: float = 5.0) -> str:
         """Text with [mm:ss] markers every few seconds — what the LLM judge reads."""
         out, last = [], -every

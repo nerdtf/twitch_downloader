@@ -103,7 +103,7 @@ def judge_candidates(
         wps = tr.words_per_second(b - a)
         chat = source.chat_sample(event, event + 20)
         j, reason, passed = None, None, True
-        start, end = event - DEFAULT_PRE, event + DEFAULT_POST
+        start, end = source.t0 + c.start, source.t0 + c.end  # stage-1 bounds follow the chat
         if llm_ok:
             try:
                 prompt = build_prompt(source, tr.timed_text(), chat, b - a, CONTEXT_PRE)
@@ -124,7 +124,8 @@ def judge_candidates(
             score = round(100 * c.score, 2)
         dur = min(max(end - start, MIN_LEN), MAX_LEN)
         end = start + dur
-        out.append(Judged(cid, event, start, end, score, passed, reason, j, tr.text, c.families))
+        clip_text = tr.text_between(start - a, end - a)  # review shows only what the clip contains
+        out.append(Judged(cid, event, start, end, score, passed, reason, j, clip_text, c.families))
         store.conn.execute(
             "UPDATE candidates SET stage2=?, final_score=?, status=?, gate_reason=? WHERE id=?",
             (

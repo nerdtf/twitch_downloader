@@ -163,9 +163,11 @@ def test_chat_speedup_counts_as_reaction():
         (t - 30, t) for t in (905, 915, 925, 940)
     ]
     sig = Signals(t0=1000, n=n, chat=chat, clip_spans=clips)
-    on = copy.deepcopy(CFG)
+    base = copy.deepcopy(CFG)
+    base["penalties"].pop("weak_chat", None)  # this chat never laughs; test the gate alone
+    on = copy.deepcopy(base)
     on["reaction_gate"] = dict(on["reaction_gate"], speedup_is_reaction=True)
-    off = copy.deepcopy(CFG)
+    off = copy.deepcopy(base)
     off["reaction_gate"] = dict(off["reaction_gate"], speedup_is_reaction=False)
 
     def score_at(cfg):
@@ -195,3 +197,22 @@ def test_clip_grows_while_chat_keeps_laughing():
     assert e > t + pk["post_roll_seconds"] + 10 and e <= t + pk["max_post_roll_seconds"]
     s, e = clip_bounds(sig_with(t - 30, t + 12), t, cfg)  # already laughing before -> earlier start
     assert s < t - pk["pre_roll_seconds"] and s >= t - pk["max_pre_roll_seconds"]
+
+
+def test_weak_chat_is_penalised():
+    n = 1800
+    chat = chat_signals(synthetic_chat(n, laugh_burst=40), 1000, 1000 + n, LEX)
+    top = stage1(Signals(t0=1000, n=n, chat=chat), CFG, k=5)[0]
+    assert "weak_chat" not in top.penalties  # 40 laughs in the window: a real reaction
+    quiet = chat_signals(synthetic_chat(n, base_rate=0.3, laugh_burst=4), 1000, 1000 + n, LEX)
+    near = [c for c in stage1(Signals(t0=1000, n=n, chat=quiet), CFG, k=5) if abs(c.t - 900) <= 6]
+    assert near and "weak_chat" in near[0].penalties  # a handful of messages is not a moment
+
+
+def test_transcript_text_between_keeps_only_clip_words():
+    from clipper.judge.transcribe import Transcript, Word
+
+    tr = Transcript(
+        "a b c", [Word("до", 1, 2, 1), Word("в", 15, 16, 1), Word("после", 50, 51, 1)], "ru"
+    )
+    assert tr.text_between(10, 40) == "в"
