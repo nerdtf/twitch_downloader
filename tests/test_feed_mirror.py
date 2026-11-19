@@ -132,5 +132,7 @@ def test_config_env_overrides_for_the_pi(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("CLIPPER_TTL_HOURS", "2")
     monkeypatch.setenv("CLIPPER_MIN_FREE_GB", "5")
+    monkeypatch.setenv("CLIPPER_DATA_DIR", "/mnt/hdd/clipper/recordings")
     cfg = load_config(p, base=tmp_path)
     assert cfg.recorder.min_free_gb == 5 and {s.ttl_hours for s in cfg.streamers} == {2}
+    assert str(cfg.recorder.data_dir) == "/mnt/hdd/clipper/recordings"

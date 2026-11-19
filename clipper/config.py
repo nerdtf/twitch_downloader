@@ -58,6 +58,8 @@ def load_config(path: str | Path, base: Path = REPO_ROOT) -> Config:
                 e.pop("ttl_hours", None)
     if v := env("CLIPPER_MIN_FREE_GB"):
         rec["min_free_gb"] = float(v)
+    if v := env("CLIPPER_DATA_DIR"):  # Pi: raw video on the big HDD, DB stays on the SD card
+        rec["data_dir"] = v
 
     settings = RecorderSettings(
         data_dir=_path(rec.get("data_dir", "data/recordings"), base),
