@@ -56,5 +56,7 @@ fullscreen. Moving folders by hand + `clipper.review sync` still works.
 `clipper.track posted|views|submitted|due` (manual entry), `clipper.learn export|train`
 (logistic regression for P(approve) once ≥ 300 labels).
 
-## M7 — Raspberry Pi ⬜
-Docs + systemd unit ready (`docs/PI_MIGRATION.md`, `deploy/pi/`). Needs the Pi.
+## M7 — Raspberry Pi 🟨 (code ready, setup with the owner 2026-11-19)
+Pi: `clipper.record` + `clipper.feed` (systemd, `deploy/pi/setup.sh`, `deploy/pi/update.sh`).
+Mac: `clipper.mirror` + `clipper.pipeline live` (`deploy/install_recorder.sh mirror`).
+Step-by-step: `docs/PI_MIGRATION.md`. Tested end to end on localhost and against the live Mac DB.

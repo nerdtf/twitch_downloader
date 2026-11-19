@@ -2,6 +2,23 @@
 
 Newest first. Format: date — decision — why. "Proposed" = awaiting owner confirmation.
 
+## 2026-11-19 (Pi migration)
+- **The Pi records, the Mac clips; linked by a pull mirror, not a network share.** Pi runs
+  `clipper.record` + `clipper.feed` (read-only HTTP on the LAN, shared token); the Mac runs
+  `clipper.mirror` + `clipper.pipeline live`. SQLite over SMB/NFS is fragile and the Mac pipeline
+  writes its own rows, so each machine keeps its own DB. Segments are append-only `.ts`, so the
+  open one is copied incrementally with HTTP Range (Mac lags the Pi by ~10 s).
+- **DB and clips are not migrated.** The Pi starts with an empty DB (it only needs the recorder's
+  rows); labels, candidates and clips stay on the Mac, where review and scoring happen.
+- **After a gap only the last hour is copied** (`--backfill-hours 1`): old moments are stale for
+  live posting; the Pi keeps its own TTL window anyway.
+- **Per-machine disk settings via .env** (`CLIPPER_TTL_HOURS`, `CLIPPER_MIN_FREE_GB`), so both
+  machines run the same `config/streamers.yaml` from git. mlx-whisper / parakeet-mlx are
+  macOS-only dependencies, so `uv sync` works on the Pi.
+- **Mac disk guard 25 -> 12 GB** (the Mac had ~30 GB free and was deleting live segments).
+- **Review page: one clip at a time**, → / ← then a numbered reason (2 keys per clip), swipe or
+  trackpad swipe, autoplay at the remembered speed, undo; 100 clips per load.
+
 ## 2026-11-19 (69 owner labels: 22 approved / 47 rejected)
 - **Scoring fitted to labels.** Per-feature AUC: viewer clips made in the 2 min after a moment 0.76,
   laughter over 30 s 0.69, laugh share 0.66, message rate 0.52 (useless), loudness 0.55. New stage-1:

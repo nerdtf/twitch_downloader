@@ -4,10 +4,10 @@ version = "0.1.0"
 description = "Record Twitch streams, find clip-worthy moments, render vertical clips for review."
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "mlx-whisper>=0.4.3",
+    "mlx-whisper>=0.4.3; sys_platform == 'darwin'",  # Apple-only; the Pi only records
     "numpy>=2.5.5",
     "opencv-python-headless>=4.10,<5",
-    "parakeet-mlx>=0.7.0",
+    "parakeet-mlx>=0.7.0; sys_platform == 'darwin'",
     "pillow>=13.0.0",
     "pyyaml>=6.0",
     "requests>=2.32",

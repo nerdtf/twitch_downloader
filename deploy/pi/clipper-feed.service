@@ -1,0 +1,18 @@
+# systemd unit for the LAN feed the Mac mirrors from. Installed by deploy/pi/setup.sh.
+[Unit]
+Description=Clipper feed (serves recordings + chat to the Mac)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=__REPO__
+ExecStart=__REPO__/.venv/bin/python -m clipper.feed
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:__REPO__/data/logs/feed.log
+StandardError=append:__REPO__/data/logs/feed.log
+
+[Install]
+WantedBy=multi-user.target

@@ -124,5 +124,7 @@ precision@10 per stream-day and recall of gold moments in top-40 candidates.
 - `uv run python -m clipper.judge.llm --check` — test the LLM key/endpoint (prints the server reply, not the key)
 - `uv run python -m clipper.pipeline backfill` — render judged live moments the cap skipped
 - `uv run python -m clipper.track ...` · `clipper.learn export|train`
-- `deploy/install_recorder.sh` — install recorder + live pipeline as launchd agents (owner runs it)
+- `deploy/install_recorder.sh [recorder|mirror]` — Mac launchd agents: Mac records itself, or mirrors the Pi (owner runs it)
+- Pi: `uv run python -m clipper.feed` (serves recorder rows/files to the Mac) · `bash deploy/pi/setup.sh` · `bash deploy/pi/update.sh`
+- Mac: `uv run python -m clipper.mirror [--once]` — pull recordings + chat from the Pi feed (`docs/PI_MIGRATION.md`)
 - Review queue: `data/clips/pending|approved|rejected/<login>/<id>/`; approved = ready to post.

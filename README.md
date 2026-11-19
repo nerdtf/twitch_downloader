@@ -26,6 +26,7 @@ open data/clips/index.html                # review
 | `clipper/pipeline/` | glue: run stage-1 → stage-2 → render for a VOD or live recordings |
 | `clipper/review/`, `track/`, `learn/` | review sync, posted-clip view tracker, learning dataset |
 | `clipper/eval/` | metrics vs. owner gold / viewer-clip weak gold |
+| `clipper/feed.py`, `mirror.py` | Pi → Mac link: the Pi serves recordings + chat, the Mac pulls them |
 | `clipper/sources.py`, `store.py`, `config.py` | source abstraction, SQLite schema, config loading |
 | `config/*.yaml` | streamers, layouts, lexicon, scoring weights, programs, eval set |
 | `data/` (gitignored) | recordings, DB, VODs, caches, clips, logs |
@@ -36,6 +37,7 @@ open data/clips/index.html                # review
 | `uv run pytest` · `uv run ruff check . && uv run ruff format .` | tests · lint/format |
 | `uv run python -m clipper.record` | recorder (`--duration N` for a test run) |
 | `uv run python -m clipper.pipeline live` | live clip finding during streams |
+| `uv run python -m clipper.feed` / `clipper.mirror` | Pi records + serves / Mac pulls (`docs/PI_MIGRATION.md`) |
 | `uv run python -m clipper.pipeline vod <id>... [--judge 8 --render 3]` | practice on a past broadcast |
 | `uv run python -m clipper.twitch.vod <id>...` | download VOD audio + viewer clips |
 | `uv run python -m clipper.eval` | p@10 / recall@40 on config/eval.yaml (hold-out reported apart) |

@@ -46,8 +46,18 @@ def _path(value, base: Path) -> Path:
 
 def load_config(path: str | Path, base: Path = REPO_ROOT) -> Config:
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    defaults = raw.get("defaults") or {}
-    rec = raw.get("recorder") or {}
+    defaults = dict(raw.get("defaults") or {})
+    rec = dict(raw.get("recorder") or {})
+    # Per-machine overrides (.env / environment): the Pi and the Mac have different disks.
+    from clipper.env import get as env
+
+    if v := env("CLIPPER_TTL_HOURS"):
+        defaults["ttl_hours"] = float(v)
+        for e in raw.get("streamers") or []:
+            if isinstance(e, dict):
+                e.pop("ttl_hours", None)
+    if v := env("CLIPPER_MIN_FREE_GB"):
+        rec["min_free_gb"] = float(v)
 
     settings = RecorderSettings(
         data_dir=_path(rec.get("data_dir", "data/recordings"), base),

@@ -125,6 +125,11 @@ CREATE TABLE IF NOT EXISTS posts (
     posted_epoch  REAL NOT NULL,
     submitted_epoch REAL              -- when submitted to the bounty program
 );
+-- Small key/value state (e.g. the Mac mirror's high-water marks of the Pi feed)
+CREATE TABLE IF NOT EXISTS kv (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
 CREATE TABLE IF NOT EXISTS view_snapshots (
     post_id       INTEGER NOT NULL REFERENCES posts(id),
     epoch         REAL NOT NULL,
@@ -138,6 +143,7 @@ MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("title", "TEXT"),
         ("game_name", "TEXT"),
         ("stream_started_at", "TEXT"),
+        ("origin", "TEXT"),  # "pi:<id>" when mirrored from the Pi recorder
     ],
 }
 
@@ -180,6 +186,17 @@ class Store:
 
     def close(self):
         self.conn.close()
+
+    # --- key/value ---
+    def kv_get(self, key: str, default: str | None = None) -> str | None:
+        r = self.conn.execute("SELECT value FROM kv WHERE key=?", (key,)).fetchone()
+        return r["value"] if r else default
+
+    def kv_set(self, key: str, value) -> None:
+        self.conn.execute(
+            "INSERT INTO kv(key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, str(value)),
+        )
 
     # --- recordings ---
     def start_recording(self, login: str, dir_: Path, started_epoch: float) -> int:
