@@ -52,6 +52,12 @@ def render_variants(store: Store, cid: int, hook: str = "", names=None, root: Pa
         done.append({"name": name, "label": st.label, "desc": st.desc, "file": f"{name}.mp4"})
         log.info("%s: %s", cid, out / f"{name}.mp4")
     shutil.rmtree(work, ignore_errors=True)
+    old = out / "variants.json"
+    if old.exists():  # keep variants rendered earlier (e.g. adding one new style)
+        prev = json.loads(old.read_text(encoding="utf-8"))
+        names_done = {d["name"] for d in done}
+        done = [v for v in prev.get("variants", []) if v["name"] not in names_done] + done
+        hook = hook or prev.get("hook", "")
     info = {
         "candidate_id": cid,
         "login": r["login"],

@@ -197,3 +197,9 @@ Styles (owner: "show me variants on a couple of clips first"): `clipper/render/s
 A base / B clean / C hook-sticker / D punch; `python -m clipper.render.variants <ids>` renders them to
 `data/clips/styles/`, the review app's Styles page compares them and stores picks in
 `styles/picks.jsonl`. Normal clips keep the base style until the owner picks.
+
+## 2026-11-20 — Clip style: C's grade and subtitles, nothing else
+Owner compared styles A–D on 3 clips: liked C's colour grade (contrast/saturation/sharpen) and
+C's subtitles (2 words, yellow box on the spoken word, pop); rejected the hooks, streamer tag,
+progress bar, flash, zoom punch and grain. `STYLES["final"]` (= `DEFAULT`) is now used for every
+new clip; the hook text is no longer burned in (the judge's hook_line stays in meta/caption).

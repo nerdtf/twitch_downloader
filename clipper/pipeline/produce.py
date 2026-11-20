@@ -12,6 +12,7 @@ from clipper.render.caption import build_caption
 from clipper.render.facecam import resolve_layout
 from clipper.render.layout import load_layout
 from clipper.render.render import render_clip
+from clipper.render.style import DEFAULT
 from clipper.sources import Source
 from clipper.store import Store
 
@@ -49,7 +50,9 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
             spots[source.login] = [list(lay.facecam), *seen][:3]
             CAM_SPOTS.write_text(json.dumps(spots), encoding="utf-8")
         log.info("candidate %s layout %s (%s)", j.cand_id, lay.kind, lay_why)
-        result = render_clip(cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook)
+        result = render_clip(
+            cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook, style=DEFAULT
+        )
         title = (j.judgement or {}).get("title") or f"{source.login}: момент со стрима"
         (out_dir / "caption.txt").write_text(build_caption(source.login, title), encoding="utf-8")
         meta = {

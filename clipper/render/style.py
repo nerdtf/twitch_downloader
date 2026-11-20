@@ -66,5 +66,16 @@ STYLES = {
             tag=True,
             hook="sticker",
         ),
+        Style(
+            "final",
+            "E · выбранный",
+            "Картинка и сабы из C, без хука, плашки, прогресса и эффектов (выбор 2026-11-20).",
+            sub=SubStyle(size=84, stroke=7, pop=0.18, box=YELLOW, max_words=2),
+            grade=GRADE,
+            hook="none",
+        ),
     )
 }
+# what every new clip gets (owner 2026-11-20: C's colour grade and subtitles, nothing else —
+# hooks, tag, progress bar, flash, zoom and grain were rejected)
+DEFAULT = STYLES["final"]
