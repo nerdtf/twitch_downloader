@@ -2,6 +2,7 @@
 
   uv run python -m clipper.pipeline vod <vod_id>... [--judge 8 --render 3]   # practice / backfill
   uv run python -m clipper.pipeline live                                     # during streams
+  uv run python -m clipper.pipeline catchup --hours 10                       # after Mac sleep
 
 Output: data/clips/pending/<login>/<id>/{clip.mp4,caption.txt,meta.json} + data/clips/index.html
 """
@@ -14,6 +15,8 @@ from datetime import UTC, datetime
 
 from clipper.config import REPO_ROOT, load_config
 from clipper.judge.llm import LLMJudge
+from clipper.pipeline.catchup import add_parser as add_catchup_parser
+from clipper.pipeline.catchup import run_catchup
 from clipper.pipeline.produce import render_judged, write_index
 from clipper.pipeline.stage2 import (
     CONTEXT_PRE,
@@ -212,19 +215,22 @@ def main() -> None:
         "--lookback", type=float, default=1200, help="seconds of stream scored each pass"
     )
     lv.add_argument("--min-score", type=float, default=0.35)
-    for sp in (lv, bf := sub.add_parser("backfill")):
+    add_catchup_parser(sub)
+    for sp in (lv, bf := sub.add_parser("backfill"), sub.choices["catchup"]):
         sp.add_argument(
             "--daily-cap", type=int, default=0, help="max clips/streamer/day, 0 = no limit"
         )
         # 2026-11-19, 229 labels: lowest approved scores 43 (buster) / 57 / 63; >=55 keeps 55 of 59
         # approvals. No daily cap: the owner reviews everything to tune the scoring.
-        sp.add_argument("--render-min", type=float, default=55, help="min final score to render")
+        sp.add_argument("--render-min", type=float, default=40, help="min final score to render")
     bf.add_argument("--login", nargs="*", help="only these streamers")
     args = ap.parse_args()
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
-    {"vod": run_vod, "live": run_live, "backfill": run_backfill}[args.cmd](args)
+    {"vod": run_vod, "live": run_live, "backfill": run_backfill, "catchup": run_catchup}[args.cmd](
+        args
+    )
 
 
 if __name__ == "__main__":
