@@ -98,19 +98,46 @@ class RecordingSource(Source):
         return recording_signals(self.store, self.rec_id, t_from, t_to, self.lexicon, with_clips)
 
     def _segments(self, a: float, b: float):
+        """Segments covering [a, b]. Raises KeyError unless the whole window is on disk: a gap, or
+        an unfinished segment that is not the recording's last one (the mirror is still copying
+        it after the Mac slept), would otherwise cut the wrong moment (2026-11-20: one half-copied
+        file gave five "different" zloyn clips with the same video)."""
         rows = self.store.conn.execute(
             "SELECT path, start_epoch, duration FROM segments WHERE recording_id=? AND deleted_epoch IS NULL"
             " ORDER BY start_epoch",
             (self.rec_id,),
         ).fetchall()
+        newest = self.store.conn.execute(
+            "SELECT MAX(start_epoch) FROM segments WHERE recording_id=?", (self.rec_id,)
+        ).fetchone()[0]
         out = []
         for r in rows:
-            dur = r["duration"] if r["duration"] and r["duration"] > 0 else 1e9  # open segment
-            if r["start_epoch"] + dur >= a and r["start_epoch"] <= b:
-                out.append(r)
-        if not out:
-            raise KeyError(f"no segments cover {a:.0f}-{b:.0f} in recording {self.rec_id}")
-        return out
+            dur = r["duration"]
+            if dur is None and r["start_epoch"] == newest:
+                dur = 1e9  # the open, growing segment
+            elif dur is None:
+                dur = 0.0  # incomplete copy: no usable video yet
+            elif dur < 0:
+                dur = 300.0  # finished, length unknown: assume a normal 5-min segment
+            if r["start_epoch"] + dur >= a and r["start_epoch"] <= b and dur > 0:
+                out.append((r, dur))
+        covered = a
+        for r, dur in out:
+            if r["start_epoch"] > covered + 2.0:
+                break
+            covered = max(covered, r["start_epoch"] + dur)
+        if not out or covered < b:
+            raise KeyError(
+                f"segments for {a:.0f}-{b:.0f} in recording {self.rec_id} not on disk yet"
+            )
+        return [r for r, _ in out]
+
+    def has_video(self, a: float, b: float) -> bool:
+        try:
+            self._segments(a, b)
+            return True
+        except KeyError:
+            return False
 
     def _joined(self, a: float, b: float, out: Path) -> tuple[Path, float]:
         segs = self._segments(a, b)

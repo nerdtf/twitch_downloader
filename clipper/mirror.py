@@ -128,12 +128,12 @@ class Mirror:
                 break
             path = self.data_dir / s["rel"]
             row = self.store.conn.execute(
-                "SELECT duration, deleted_epoch FROM segments WHERE path=?", (str(path),)
+                "SELECT duration, deleted_epoch, pinned FROM segments WHERE path=?", (str(path),)
             ).fetchone()
             if row is not None and (
-                row["duration"] is not None or row["deleted_epoch"] is not None
+                row["duration"] is not None or row["deleted_epoch"] is not None or row["pinned"]
             ):
-                continue  # complete (or already expired locally)
+                continue  # complete, expired locally, or being copied by `pipeline catchup`
             end = s["start_epoch"] + (s["duration"] if s["duration"] and s["duration"] > 0 else 300)
             if row is None:
                 if end < now - self.backfill:
@@ -143,6 +143,10 @@ class Mirror:
                     rec_map[s["recording_id"]], s["login"], path, s["start_epoch"]
                 )
             have = path.stat().st_size if path.exists() else 0
+            if have > s["size"]:  # bigger than the Pi's file = corrupt (double append): refetch
+                log.warning("%s: local copy larger than the Pi's, copying again", s["rel"])
+                path.unlink()
+                have = 0
             if s["size"] > have:
                 copied += self._append(s["rel"], path, have)
             have = path.stat().st_size if path.exists() else 0

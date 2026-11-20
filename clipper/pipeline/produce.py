@@ -19,6 +19,16 @@ log = logging.getLogger(__name__)
 CLIPS = REPO_ROOT / "data/clips"
 
 
+CAM_SPOTS = REPO_ROOT / "data/cam_spots.json"  # last cam boxes found per streamer
+
+
+def _cam_spots() -> dict:
+    try:
+        return json.loads(CAM_SPOTS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
 def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -> Path:
     stamp = datetime.fromtimestamp(j.event, UTC).strftime("%Y%m%d-%H%M")
     queue = "practice" if source.key.startswith("vod:") else "pending"  # review is live-only
@@ -29,9 +39,15 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
         cut = source.video_for(j.start, j.end, work)
         hook = (j.judgement or {}).get("hook_line", "")
         game = source.game_at(j.event) if hasattr(source, "game_at") else source.game
+        spots = _cam_spots()
         lay, lay_why = resolve_layout(
-            load_layout(source.login), cut.path, cut.offset, j.end - j.start, game
-        )
+            load_layout(source.login), cut.path, cut.offset, j.end - j.start, game,
+            recent=spots.get(source.login),
+        )  # fmt: skip
+        if lay.kind == "split" and lay.facecam:
+            seen = [b for b in spots.get(source.login, []) if tuple(b) != tuple(lay.facecam)]
+            spots[source.login] = [list(lay.facecam), *seen][:3]
+            CAM_SPOTS.write_text(json.dumps(spots), encoding="utf-8")
         log.info("candidate %s layout %s (%s)", j.cand_id, lay.kind, lay_why)
         result = render_clip(cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook)
         title = (j.judgement or {}).get("title") or f"{source.login}: момент со стрима"

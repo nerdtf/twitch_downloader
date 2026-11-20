@@ -179,3 +179,13 @@ Newest first. Format: date — decision — why. "Proposed" = awaiting owner con
 - **Webcam found per clip**, not only in fixed boxes: a face repeated across 7 frames (two Haar
   models; alt2 handles zloyn's headband), then the cam's still edges around it. zloyn moved his cam
   3 times in 2 days. Config boxes give the expected size and stay as the fallback.
+
+## 2026-11-20 — Never cut from half-copied video; catchup and mirror never share a file
+Owner review: bratishkin "lags" and five identical zloyn clips. Cause 1: `pipeline catchup` and the
+running mirror appended to the same segment at once (local files 1.5–2× the Pi's size, video
+repeated = lags). Catchup now pins a segment before copying; the mirror skips pinned segments and
+re-copies any file larger than the Pi's. Cause 2: after the Mac woke, an unfinished copy was treated
+as the open segment covering all later times, so every moment cut the same frames. Now only the
+newest segment may be unfinished, the window must be fully on disk, and candidates wait until it is.
+The Pi recordings themselves were fine. Cam finder: the last 3 found boxes per streamer
+(`data/cam_spots.json`) are tried before the configured ones when the search misses.

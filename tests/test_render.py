@@ -165,3 +165,25 @@ def test_locate_cam_finds_the_still_rectangle_around_the_face(monkeypatch):
     assert box is not None, why
     x, y, w, h = box
     assert abs(x - 1466) <= 4 and abs(y - 300) <= 4 and abs(w - 450) <= 8 and abs(h - 300) <= 8
+
+
+def test_recording_source_refuses_half_copied_or_missing_video(tmp_path):
+    import pytest
+
+    from clipper.sources import RecordingSource
+    from clipper.store import Store
+
+    st = Store(tmp_path / "x.db")
+    rid = st.start_recording("zloyn", tmp_path, 1000.0)
+    for i, t in enumerate((1000.0, 1300.0, 1600.0)):
+        st.add_segment(rid, "zloyn", tmp_path / f"{i}.ts", t)
+    st.finish_segment(tmp_path / "0.ts", 300.0, 10)  # 1.ts still copying, 2.ts open (newest)
+    src = RecordingSource(st, rid)
+    assert src.has_video(1100, 1250)
+    assert not src.has_video(1250, 1350)  # needs the half-copied 1.ts
+    assert src.has_video(1700, 1900)  # the growing last segment is fine
+    st.finish_segment(tmp_path / "1.ts", 300.0, 10)
+    assert src.has_video(1250, 1650)
+    st.conn.execute("UPDATE segments SET deleted_epoch=1 WHERE path=?", (str(tmp_path / "1.ts"),))
+    with pytest.raises(KeyError):
+        src._segments(1250, 1650)  # gap

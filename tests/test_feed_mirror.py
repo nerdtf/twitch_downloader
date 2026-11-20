@@ -136,3 +136,26 @@ def test_config_env_overrides_for_the_pi(tmp_path, monkeypatch):
     cfg = load_config(p, base=tmp_path)
     assert cfg.recorder.min_free_gb == 5 and {s.ttl_hours for s in cfg.streamers} == {2}
     assert str(cfg.recorder.data_dir) == "/mnt/hdd/clipper/recordings"
+
+
+def test_mirror_leaves_pinned_segments_and_refetches_oversized_copies(pi, tmp_path):
+    pstore, pdata, url = pi
+    now = time.time()
+    rdir = pdata / "zloyn/r"
+    rdir.mkdir(parents=True)
+    rid = pstore.start_recording("zloyn", rdir, now - 600)
+    for name in ("a.ts", "b.ts"):
+        (rdir / name).write_bytes(b"x" * 10)
+        pstore.add_segment(rid, "zloyn", rdir / name, now - 300 if name == "a.ts" else now - 100)
+        pstore.finish_segment(rdir / name, 100.0, 10)
+    mac = Store(tmp_path / "mac.db")
+    m = Mirror(mac, tmp_path / "mac", url, TOKEN)
+    m.tick()
+    a, b = tmp_path / "mac/zloyn/r/a.ts", tmp_path / "mac/zloyn/r/b.ts"
+    # a: catchup owns it (pinned, unfinished) -> mirror must not append; b: corrupt double copy
+    mac.conn.execute("UPDATE segments SET duration=NULL, pinned=1 WHERE path=?", (str(a),))
+    a.write_bytes(b"x" * 4)
+    mac.conn.execute("UPDATE segments SET duration=NULL WHERE path=?", (str(b),))
+    b.write_bytes(b"x" * 20)
+    m.tick()
+    assert a.stat().st_size == 4 and b.stat().st_size == 10

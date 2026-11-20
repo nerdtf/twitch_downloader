@@ -182,9 +182,17 @@ def locate_cam(
 
 
 def resolve_layout(
-    lay: Layout, video: Path, offset: float, duration: float, game: str = "", samples: int = 7
+    lay: Layout,
+    video: Path,
+    offset: float,
+    duration: float,
+    game: str = "",
+    samples: int = 7,
+    recent: list | None = None,
 ) -> tuple[Layout, str]:
-    """(layout to use, reason). `kind: auto` -> split if a face is in the facecam box."""
+    """(layout to use, reason). `kind: auto` -> split if a face is in the facecam box.
+    `recent`: cam boxes found on this streamer's last clips, tried before the configured ones
+    when the search misses (streamers move the cam; 2026-11-20 zloyn moved it mid-day)."""
     if lay.kind != "auto":
         return lay, f"configured {lay.kind}"
     fit = replace(lay, kind="fit_blur")
@@ -193,7 +201,10 @@ def resolve_layout(
     if (game or "").strip().lower() in IRL_GAMES:
         return fit, f"IRL category ({game})"
     info = probe_video(video)
-    boxes = [lay.facecam, *lay.facecam_alts]
+    boxes = []
+    for b in [*(recent or []), lay.facecam, *lay.facecam_alts]:
+        if tuple(b) not in boxes:
+            boxes.append(tuple(b))
     hits = [0] * len(boxes)
     frames = []
     for i in range(samples):

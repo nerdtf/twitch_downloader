@@ -19,6 +19,7 @@ from clipper.pipeline.catchup import add_parser as add_catchup_parser
 from clipper.pipeline.catchup import run_catchup
 from clipper.pipeline.produce import render_judged, write_index
 from clipper.pipeline.stage2 import (
+    CONTEXT_POST,
     CONTEXT_PRE,
     Judged,
     insert_candidates,
@@ -149,6 +150,8 @@ def process_live_recording(store, rec_id, cfg, judge, args, now) -> None:
             " OR (start_epoch < ? AND end_epoch > ?))",
             (src.login, ev, b, a),
         ).fetchone()
+        if not near and not src.has_video(min(a, ev - CONTEXT_PRE), max(b, ev + CONTEXT_POST)):
+            continue  # video not fully copied yet (Mac just woke): try again next pass
         if not near:
             c.t, c.start, c.end = (
                 int(ev - src.t0),

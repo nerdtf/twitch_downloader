@@ -70,12 +70,18 @@ def ensure_segments(m: Mirror, store: Store, segs: list[dict], rid: int, lo: flo
         if row is None:
             path.parent.mkdir(parents=True, exist_ok=True)
             store.add_segment(rid, s["login"], path, s["start_epoch"])
+            # pin before copying: the running mirror skips pinned segments, so the two never
+            # append to the same file (2026-11-20: they did, doubling bratishkin's video = "lags")
+            store.conn.execute("UPDATE segments SET pinned=1 WHERE path=?", (str(path),))
         elif row["deleted_epoch"] is not None:  # removed by the Mac TTL earlier: fetch again
             path.unlink(missing_ok=True)
             store.conn.execute(
                 "UPDATE segments SET deleted_epoch=NULL, duration=NULL WHERE id=?", (row["id"],)
             )
         have = path.stat().st_size if path.exists() else 0
+        if have > s["size"]:  # corrupt local copy: start over
+            path.unlink()
+            have = 0
         if s["size"] > have:
             m._append(s["rel"], path, have)
         have = path.stat().st_size if path.exists() else 0
