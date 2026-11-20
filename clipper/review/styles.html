@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip styles</title>
+<style>
+  :root { --bg:#0f1012; --panel:#17191c; --line:#26292e; --text:#e8e8ea; --muted:#8b8f97; --accent:#9b7bff; --ok:#2fbf71; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system, system-ui, sans-serif; }
+  header { position:sticky; top:0; z-index:2; display:flex; gap:14px; align-items:center; padding:12px 16px;
+           background:rgba(15,16,18,.94); border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0; }
+  header a { color:var(--accent); text-decoration:none; }
+  .muted { color:var(--muted); }
+  main { padding:16px; display:flex; flex-direction:column; gap:20px; }
+  .clip { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .clip h2 { font-size:15px; margin:0 0 4px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px; }
+  .var { display:flex; flex-direction:column; gap:6px; border:2px solid transparent; border-radius:12px; padding:6px; }
+  .var.picked { border-color:var(--ok); }
+  video { width:100%; aspect-ratio:9/16; background:#000; border-radius:10px; }
+  .var b { font-size:14px; }
+  .var p { margin:0; font-size:12px; color:var(--muted); min-height:48px; }
+  .btn { border:1px solid var(--line); background:#202328; color:inherit; border-radius:8px; padding:7px 12px; cursor:pointer; font:inherit; }
+  .btn:hover { border-color:#3a3f47; }
+  .btn.ok { background:var(--ok); border-color:var(--ok); color:#04150b; font-weight:700; }
+  input.note { flex:1; min-width:200px; background:#101114; border:1px solid var(--line); border-radius:8px; padding:8px; color:inherit; font:inherit; }
+  .hook { background:#121316; border-radius:6px; padding:2px 8px; }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#24272d; padding:8px 16px; border-radius:8px; opacity:0; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Styles</h1>
+  <span class="muted" id="count"></span>
+  <span class="muted">Одни и те же клипы в разных стилях. Выбери лучший вариант и оставь комментарий.</span>
+  <a href="/" style="margin-left:auto">← Review</a>
+</header>
+<main id="list"><p class="muted">Loading…</p></main>
+<div id="toast"></div>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m) { const t = document.getElementById("toast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2000); }
+
+async function load() {
+  const r = await fetch("/api/styles"); const data = await r.json();
+  document.getElementById("count").textContent = data.clips.length + " clips";
+  const list = document.getElementById("list");
+  if (!data.clips.length) { list.innerHTML = '<p class="muted">No style previews yet.</p>'; return; }
+  list.innerHTML = "";
+  for (const c of data.clips) list.appendChild(card(c));
+}
+
+function card(c) {
+  const el = document.createElement("section");
+  el.className = "clip";
+  el.innerHTML = `
+    <h2>${esc(c.login)} · #${c.candidate_id} <span class="muted">score ${Math.round(c.score || 0)} · ${esc(c.layout)}</span></h2>
+    <div class="row muted">Хук: <span class="hook">${esc(c.hook || "—")}</span></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" data-act="play">▶ Play all (sound: first)</button>
+      <button class="btn" data-act="stop">■ Stop</button>
+      <input class="note" placeholder="Комментарий: что нравится / что убрать" value="${esc(c.note || "")}">
+    </div>
+    <div class="grid">${c.variants.map(v => `
+      <div class="var ${c.pick === v.name ? "picked" : ""}" data-name="${esc(v.name)}">
+        <b>${esc(v.label)}</b>
+        <video src="/clips/${esc(c.dir)}/${esc(v.file)}" controls playsinline preload="metadata"></video>
+        <p>${esc(v.desc)}</p>
+        <button class="btn ${c.pick === v.name ? "ok" : ""}" data-pick="${esc(v.name)}">${c.pick === v.name ? "✓ Выбран" : "Выбрать"}</button>
+      </div>`).join("")}
+    </div>`;
+  const vids = [...el.querySelectorAll("video")];
+  el.querySelector('[data-act="play"]').onclick = () => {
+    vids.forEach((v, i) => { v.currentTime = 0; v.muted = i !== 0; v.play(); });
+  };
+  el.querySelector('[data-act="stop"]').onclick = () => vids.forEach(v => v.pause());
+  el.querySelectorAll("[data-pick]").forEach(b => b.onclick = async () => {
+    const note = el.querySelector(".note").value;
+    const r = await fetch("/api/style-pick", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir: c.dir, pick: b.dataset.pick, note }) });
+    if (!r.ok) { toast((await r.json()).error || "error"); return; }
+    c.pick = b.dataset.pick; c.note = note;
+    el.replaceWith(card(c)); toast("Saved");
+  });
+  return el;
+}
+load();
+</script>
+</body>
+</html>

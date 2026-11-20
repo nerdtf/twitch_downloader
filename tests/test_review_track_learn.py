@@ -86,3 +86,26 @@ def test_review_list_pending_limit_and_counts(tmp_path):
     assert [c["score"] for c in list_pending(store, root, limit=2)] == [30, 20]
     assert [c["score"] for c in list_pending(store, root, login="a")] == [30, 10]
     assert pending_counts(root) == {"a": 2, "b": 1}
+
+
+def test_style_previews_list_and_pick(tmp_path):
+    import json
+
+    from clipper.review.server import list_styles, pick_style
+
+    d = tmp_path / "styles/zloyn/01182_x"
+    d.mkdir(parents=True)
+    (d / "variants.json").write_text(
+        json.dumps({"candidate_id": 1182, "variants": [{"name": "base"}, {"name": "punch"}]})
+    )
+    items = list_styles(tmp_path)
+    assert items[0]["dir"] == "styles/zloyn/01182_x"
+    pick_style("styles/zloyn/01182_x", "punch", "love the zoom", tmp_path)
+    assert json.loads((d / "variants.json").read_text())["pick"] == "punch"
+    assert "love the zoom" in (tmp_path / "styles/picks.jsonl").read_text()
+    import pytest
+
+    with pytest.raises(ValueError):
+        pick_style("styles/zloyn/01182_x", "nope", "", tmp_path)
+    with pytest.raises(ValueError):
+        pick_style("../etc", "base", "", tmp_path)

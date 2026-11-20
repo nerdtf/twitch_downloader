@@ -189,3 +189,11 @@ as the open segment covering all later times, so every moment cut the same frame
 newest segment may be unfinished, the window must be fully on disk, and candidates wait until it is.
 The Pi recordings themselves were fine. Cam finder: the last 3 found boxes per streamer
 (`data/cam_spots.json`) are tried before the configured ones when the search misses.
+
+## 2026-11-20 — Exact first frame; clip style previews
+Most clips started with 0.4–6 s of missing video (audio fine): seeking a Twitch .ts lands after the
+next keyframe (~4 s apart). The renderer now seeks 8 s earlier and trims exactly in the filtergraph.
+Styles (owner: "show me variants on a couple of clips first"): `clipper/render/style.py` defines
+A base / B clean / C hook-sticker / D punch; `python -m clipper.render.variants <ids>` renders them to
+`data/clips/styles/`, the review app's Styles page compares them and stores picks in
+`styles/picks.jsonl`. Normal clips keep the base style until the owner picks.

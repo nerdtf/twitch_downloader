@@ -25,6 +25,7 @@ from clipper.store import Store
 
 log = logging.getLogger(__name__)
 PAGE = Path(__file__).with_name("review.html")
+STYLES_PAGE = Path(__file__).with_name("styles.html")
 CHAT_BEFORE, CHAT_AFTER = 10.0, 20.0  # chat lags the moment by ~3-10 s
 PAGE_SIZE = 100  # clips per page load; decide them and reload for the next batch
 DECISIONS = ("approved", "rejected")
@@ -166,6 +167,35 @@ def undo(store: Store, rel_dir: str, root: Path = CLIPS) -> Path:
     return dst
 
 
+def list_styles(root: Path = CLIPS) -> list[dict]:
+    """Style previews (clipper.render.variants): styles/<login>/<id>/variants.json."""
+    out = []
+    for f in sorted((root / "styles").glob("*/*/variants.json"), reverse=True):
+        try:
+            info = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        info["dir"] = str(f.parent.relative_to(root))
+        out.append(info)
+    return out
+
+
+def pick_style(rel_dir: str, pick: str, note: str, root: Path = CLIPS) -> None:
+    """Store the owner's favourite variant in variants.json and append it to styles/picks.jsonl."""
+    styles = (root / "styles").resolve()
+    f = (root / rel_dir / "variants.json").resolve()
+    if styles not in f.parents or not f.is_file():
+        raise ValueError(f"not a style preview: {rel_dir}")
+    info = json.loads(f.read_text(encoding="utf-8"))
+    if pick not in {v["name"] for v in info.get("variants", [])}:
+        raise ValueError(f"unknown variant: {pick}")
+    info["pick"], info["note"] = pick, (note or "").strip()
+    f.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
+    rec = {"dir": rel_dir, "pick": pick, "note": info["note"], "at": datetime.now().isoformat()}
+    with (styles / "picks.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
 class _Handler(BaseHTTPRequestHandler):
     store: Store
     root: Path
@@ -191,6 +221,10 @@ class _Handler(BaseHTTPRequestHandler):
         path = unquote(urlparse(self.path).path)
         if path in ("/", "/index.html"):
             return self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+        if path in ("/styles", "/styles.html"):
+            return self._send(200, STYLES_PAGE.read_bytes(), "text/html; charset=utf-8")
+        if path == "/api/styles":
+            return self._json(200, {"clips": list_styles(self.root)})
         if path == "/api/clips":
             q = parse_qs(urlparse(self.path).query)
             login = (q.get("login") or [""])[0] or None
@@ -230,10 +264,14 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/api/decide", "/api/undo"):
+        if path not in ("/api/decide", "/api/undo", "/api/style-pick"):
             return self._send(404, b"not found", "text/plain")
         try:
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            if path == "/api/style-pick":
+                pick_style(req.get("dir", ""), req.get("pick", ""), req.get("note", ""), self.root)
+                log.info("style pick %s -> %s", req.get("dir"), req.get("pick"))
+                return self._json(200, {"ok": True})
             if path == "/api/undo":
                 dst = undo(self.store, req.get("dir", ""), self.root)
                 log.info("undo %s", dst)
