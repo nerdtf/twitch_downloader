@@ -6,6 +6,7 @@ their stage-1 ranking, so the pipeline still produces clips for review.
 
 import json
 import logging
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -99,7 +100,11 @@ def judge_candidates(
         event = source.t0 + c.t
         a, b = event - CONTEXT_PRE, event + CONTEXT_POST
         audio, off = source.audio_for(a, b)
-        tr = transcribe_window(audio, off, b - a, language=language)
+        try:
+            tr = transcribe_window(audio, off, b - a, language=language)
+        finally:  # joined temp copy (~0.5 GB): leaked 125 GB in /tmp before 2026-11-20
+            if audio.name.startswith("clipper_rec") and audio.parent == Path(tempfile.gettempdir()):
+                audio.unlink(missing_ok=True)
         wps = tr.words_per_second(b - a)
         chat = source.chat_sample(event, event + 20)
         j, reason, passed = None, None, True
