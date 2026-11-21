@@ -173,6 +173,24 @@ class Mirror:
         return n
 
 
+def pi_health(m: "Mirror", store: Store, reachable: bool | None) -> None:
+    """Fetch the Pi's last health check and let clipper.health track/alert (never raises)."""
+    from clipper.health import mac_watch
+
+    health = None
+    if reachable:
+        try:
+            r = m.http.get(f"{m.url}/health", timeout=10)
+            r.raise_for_status()
+            health = r.json().get("health")
+        except (requests.RequestException, ValueError):
+            reachable = False
+    try:
+        mac_watch(store, bool(reachable), health, time.time())
+    except Exception as e:  # health must never stop the mirror
+        log.warning("health watch failed: %s", e)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -194,7 +212,7 @@ def main() -> None:
     ttl_map = {s.login: s.ttl_hours for s in cfg.streamers}
     default_ttl = max(ttl_map.values(), default=6)
     log.info("mirror: %s -> %s", url, cfg.recorder.data_dir)
-    healthy, last_ret, last_report = None, 0.0, 0.0
+    healthy, last_ret, last_report, last_health = None, 0.0, 0.0, 0.0
     while True:
         try:
             res = m.tick()
@@ -213,6 +231,9 @@ def main() -> None:
             healthy = False
             if args.once:
                 raise SystemExit(f"mirror FAILED: {e}") from e
+        if time.time() - last_health > 60:
+            pi_health(m, store, healthy)
+            last_health = time.time()
         if time.time() - last_ret > cfg.recorder.ttl_check_seconds:
             run_retention(
                 store, cfg.recorder.data_dir, ttl_map, default_ttl, cfg.recorder.min_free_gb

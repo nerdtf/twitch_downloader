@@ -1,0 +1,13 @@
+# One health check of the recorder (HDD, services, live-but-not-recorded); Telegram on problems.
+# Run every 5 min by clipper-health.timer. Deliberately NOT tied to the HDD mount.
+[Unit]
+Description=Clipper recorder health check
+
+[Service]
+Type=oneshot
+User=__USER__
+WorkingDirectory=__REPO__
+ExecStart=__REPO__/.venv/bin/python -m clipper.health --notify
+SuccessExitStatus=1
+StandardOutput=append:__REPO__/data/logs/health.log
+StandardError=append:__REPO__/data/logs/health.log

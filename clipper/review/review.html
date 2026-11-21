@@ -95,6 +95,9 @@
            padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
   .toast.show { opacity: 1; }
   .empty { grid-column: 1 / -1; align-self: center; text-align: center; color: var(--muted); }
+  #health { background:#5a1414; color:#ffd9d9; padding:10px 16px; border-bottom:1px solid #8a2323; font-size:14px; }
+  #health b { color:#fff; }
+  #health ul { margin:4px 0 0; padding-left:20px; }
 </style>
 </head>
 <body>
@@ -108,6 +111,7 @@
     <kbd>Space</kbd> play · <kbd>S</kbd> speed · <kbd>J</kbd>/<kbd>L</kbd> ±5 s · <kbd>M</kbd> moment ·
     <kbd>N</kbd> skip · <kbd>U</kbd> undo · <kbd>F</kbd> fullscreen</span>
 </header>
+<div id="health" hidden></div>
 <main id="main"></main>
 <div class="toast" id="toast"></div>
 
@@ -398,6 +402,19 @@ document.addEventListener("keydown", e => {
 
 document.getElementById("who").onchange = e => { e.target.blur(); load(); };
 load().catch(e => { document.getElementById("main").replaceChildren($("div", "empty", "Cannot load clips: " + e)); });
+</script>
+<script>
+// recorder health (Pi HDD, services, live-but-not-recorded, Mac mirror) — owner 2026-11-21
+async function health() {
+  try {
+    const h = await (await fetch("/api/health")).json();
+    const el = document.getElementById("health");
+    el.hidden = h.ok;
+    if (!h.ok) el.innerHTML = "<b>⚠️ Recorder problem</b><ul>" +
+      h.problems.map(p => "<li>" + String(p).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])) + "</li>").join("") + "</ul>";
+  } catch (e) { /* server restarting */ }
+}
+health(); setInterval(health, 60000);
 </script>
 </body>
 </html>

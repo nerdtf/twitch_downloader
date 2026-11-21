@@ -223,6 +223,10 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         if path in ("/styles", "/styles.html"):
             return self._send(200, STYLES_PAGE.read_bytes(), "text/html; charset=utf-8")
+        if path == "/api/health":
+            from clipper.health import summary
+
+            return self._json(200, summary(self.store))
         if path == "/api/styles":
             return self._json(200, {"clips": list_styles(self.root)})
         if path == "/api/clips":

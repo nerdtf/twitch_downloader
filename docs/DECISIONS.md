@@ -203,3 +203,14 @@ Owner compared styles A–D on 3 clips: liked C's colour grade (contrast/saturat
 C's subtitles (2 words, yellow box on the spoken word, pop); rejected the hooks, streamer tag,
 progress bar, flash, zoom punch and grain. `STYLES["final"]` (= `DEFAULT`) is now used for every
 new clip; the hook text is no longer burned in (the judge's hook_line stays in meta/caption).
+
+## 2026-11-21 — Recorder health check + Seagate UAS quirk
+The Pi's Seagate HDD dropped off USB at 16:09 (UAS command timeouts → reset → gone); systemd
+stopped the recorder (RequiresMountsFor) and nothing was recorded overnight, silently.
+- Pi boot: `usb-storage.quirks=0bc2:2037:u` in /boot/firmware/cmdline.txt (plain usb-storage, no UAS).
+- `clipper.health`: HDD folder writable, free disk, services active, open recordings still growing,
+  and (Helix) streamers live >5 min but not recorded. `clipper-health.timer` runs it every 5 min on
+  the Pi with no mount dependency; Telegram when problems start, every 2 h while they last, and on
+  recovery. Last result goes to data/health_status.json, served by the feed's /health.
+- The Mac mirror polls /health every minute (kv `pi.health`), alerts once if the Pi is unreachable
+  for 10 min, and the review page shows a red banner with every problem (incl. a silent mirror).

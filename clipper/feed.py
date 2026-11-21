@@ -120,7 +120,10 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send(401, b'{"error":"bad token"}')
         url = urlparse(self.path)
         if url.path == "/health":
-            return self._send(200, b'{"ok":true}')
+            from clipper.health import read_status
+
+            body = {"ok": True, "health": read_status()}  # last check by clipper-health.timer
+            return self._send(200, json.dumps(body, ensure_ascii=False).encode())
         if url.path == "/sync":
             q = {k: v[0] for k, v in parse_qs(url.query).items()}
             try:

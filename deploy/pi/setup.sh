@@ -45,8 +45,13 @@ for name in recorder feed; do
   printf '[Unit]\nRequiresMountsFor=%s\n' "$DATA_DIR" \
     | sudo tee "/etc/systemd/system/clipper-$name.service.d/data.conf" >/dev/null
 done
+# health check: every 5 min, Telegram if the HDD/services/recording break (no mount dependency)
+for unit in clipper-health.service clipper-health.timer; do
+  sed -e "s|__USER__|$USER|g" -e "s|__REPO__|$REPO|g" "deploy/pi/$unit" \
+    | sudo tee "/etc/systemd/system/$unit" >/dev/null
+done
 sudo systemctl daemon-reload
-sudo systemctl enable --now clipper-recorder clipper-feed
+sudo systemctl enable --now clipper-recorder clipper-feed clipper-health.timer
 sudo systemctl restart clipper-recorder clipper-feed
 sleep 3
 systemctl --no-pager --lines=0 status clipper-recorder clipper-feed | grep -E "●|Active"
