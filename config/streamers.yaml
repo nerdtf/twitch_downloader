@@ -1,11 +1,14 @@
 # Streamers to record. Add/remove entries here — no code changes needed.
 # login: Twitch login (lowercase, as in twitch.tv/<login>)
 # enabled: false keeps the entry but stops recording it
-# quality / ttl_hours: optional per-streamer overrides of `defaults`
+# quality / ttl_hours / language: optional per-streamer overrides of `defaults`
+# language: ru | en — clips go to data/clips/<language>/... (all current streamers are Ukrainian
+#           but stream in Russian = ru)
 
 defaults:
   quality: "1080p60,1080p,best"   # comma list = fallback order (streamlink syntax)
   ttl_hours: 6                    # keep raw segments this long (live posting -> old video is stale)
+  language: ru
 
 recorder:
   data_dir: data/recordings
@@ -24,3 +27,4 @@ streamers:
   - login: mokrivskyi
   - login: shadowkekw
   - login: bratishkinoff
+    enabled: false                # owner 2026-11-22: removed (clips moved to data/clips/to_remove)

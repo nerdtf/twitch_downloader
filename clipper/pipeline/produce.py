@@ -1,4 +1,4 @@
-"""Render judged candidates into the review queue: data/clips/pending/<login>/<id>/."""
+"""Render judged candidates into data/clips/<lang>/backlog/<login>/<id>/ (lanes: clipper.review.lanes)."""
 
 import json
 import logging
@@ -32,8 +32,13 @@ def _cam_spots() -> dict:
 
 def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -> Path:
     stamp = datetime.fromtimestamp(j.event, UTC).strftime("%Y%m%d-%H%M")
-    queue = "practice" if source.key.startswith("vod:") else "pending"  # review is live-only
-    out_dir = root / queue / source.login / f"{j.cand_id:05d}_{stamp}"
+    from clipper.review.lanes import lang_of
+
+    lang = lang_of(source.login)
+    if source.key.startswith("vod:"):  # review is live-only
+        out_dir = root / "practice" / source.login / f"{j.cand_id:05d}_{stamp}"
+    else:  # waits in the backlog until the streamer's review lane has room
+        out_dir = root / lang / "backlog" / source.login / f"{j.cand_id:05d}_{stamp}"
     work = out_dir / ".work"
     work.mkdir(parents=True, exist_ok=True)
     try:
@@ -51,14 +56,16 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
             CAM_SPOTS.write_text(json.dumps(spots), encoding="utf-8")
         log.info("candidate %s layout %s (%s)", j.cand_id, lay.kind, lay_why)
         result = render_clip(
-            cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook, style=DEFAULT
-        )
+            cut.path, cut.offset, j.end - j.start, lay, out_dir, hook=hook, style=DEFAULT,
+            language=lang, login=source.login,
+        )  # fmt: skip
         title = (j.judgement or {}).get("title") or f"{source.login}: момент со стрима"
         (out_dir / "caption.txt").write_text(build_caption(source.login, title), encoding="utf-8")
         meta = {
             "candidate_id": j.cand_id,
             "source": source.key,
             "login": source.login,
+            "lang": lang,
             "event_utc": datetime.fromtimestamp(j.event, UTC).isoformat(),
             "start_epoch": j.start,
             "end_epoch": j.end,
@@ -86,9 +93,9 @@ def render_judged(store: Store, source: Source, j: Judged, root: Path = CLIPS) -
 
 
 def write_index(root: Path = CLIPS) -> Path:
-    """data/clips/index.html — open in a browser to review pending clips, best first."""
+    """data/clips/index.html — clips waiting in the review lanes, best first."""
     items = []
-    for meta_path in sorted((root / "pending").glob("*/*/meta.json")):
+    for meta_path in sorted(root.glob("*/to_review/*/*/meta.json")):
         m = json.loads(meta_path.read_text(encoding="utf-8"))
         items.append((m.get("score", 0), meta_path.parent, m))
     items.sort(key=lambda x: -x[0])
@@ -107,7 +114,7 @@ def write_index(root: Path = CLIPS) -> Path:
         "body{font:14px system-ui;background:#111;color:#eee;margin:16px}"
         ".g{display:flex;flex-wrap:wrap;gap:16px}.c{width:300px}video{width:300px;border-radius:8px}"
         ".f{color:#888;font-size:12px}</style>"
-        "<h2>Pending clips</h2><p><b>Review with buttons, comments and chat:</b> run "
+        "<h2>Clips to review</h2><p><b>Review with buttons, comments and chat:</b> run "
         "<code>uv run python -m clipper.review serve</code> and open "
         "<a href='http://127.0.0.1:8765'>http://127.0.0.1:8765</a>.</p>"
         f"<div class=g>{''.join(cards) or '<p>No pending clips.</p>'}</div>"

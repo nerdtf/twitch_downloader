@@ -127,4 +127,8 @@ precision@10 per stream-day and recall of gold moments in top-40 candidates.
 - `deploy/install_recorder.sh [recorder|mirror]` — Mac launchd agents: Mac records itself, or mirrors the Pi (owner runs it)
 - Pi: `uv run python -m clipper.feed` (serves recorder rows/files to the Mac) · `bash deploy/pi/setup.sh` · `bash deploy/pi/update.sh`
 - Mac: `uv run python -m clipper.mirror [--once]` — pull recordings + chat from the Pi feed (`docs/PI_MIGRATION.md`)
-- Review queue: `data/clips/pending|approved|rejected/<login>/<id>/`; approved = ready to post.
+- Review queue: `data/clips/<ru|en>/<backlog|to_review|edit|approved|rejected|posted>/<login>/<id>/`
+  (`clipper.review.lanes`): to_review holds max 15 per streamer, refilled from backlog (live first).
+- `uv run python -m clipper.review bot` — Telegram review bot (launchd `com.clipper.bot`); `... review lanes|edits`
+- `uv run python -m clipper.review recut <id> --start -5 --end +3 [--cam X,Y,W,H|--full]` — fix a clip from edit/
+- `uv run python -m clipper.post list|show|mark` — posting-agent hand-off (`docs/POSTING_AGENT.md`)

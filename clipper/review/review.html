@@ -62,6 +62,7 @@
   .sheet.ok h4 { color: var(--ok); } .sheet.bad h4 { color: var(--bad); }
   .reason { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; border-radius: 7px;
             border: 1px solid transparent; background: none; cursor: pointer; }
+  .plats { display: flex; gap: 6px; margin-bottom: 6px; } .plats .reason { width: auto; } .reason.on { border-color: var(--ok, #2fbf71); }
   .reason:hover, .reason.sel { background: #24272d; border-color: #3a3f47; }
   .sheet input { width: 100%; margin-top: 8px; background: #101114; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
   .sheet .hint { margin-top: 6px; }
@@ -107,7 +108,7 @@
   <select id="who"><option value="">All streamers</option></select>
   <span class="tally" id="tally"></span>
   <a href="/styles" style="color:var(--accent);text-decoration:none">Styles ✨</a>
-  <span class="keys"><kbd>→</kbd> approve · <kbd>←</kbd> reject · then <kbd>1</kbd>–<kbd>9</kbd> reason ·
+  <span class="keys"><kbd>→</kbd> approve · <kbd>←</kbd> reject · <kbd>E</kbd> edit · then <kbd>1</kbd>–<kbd>9</kbd> reason ·
     <kbd>Space</kbd> play · <kbd>S</kbd> speed · <kbd>J</kbd>/<kbd>L</kbd> ±5 s · <kbd>M</kbd> moment ·
     <kbd>N</kbd> skip · <kbd>U</kbd> undo · <kbd>F</kbd> fullscreen</span>
 </header>
@@ -124,7 +125,11 @@ const REASONS = {
   rejected: ["not funny", "no context", "boring / quiet", "streamer not main", "bad crop / timing",
              "chat not laughing", "stream start / tech issue", "politics / drama", "ads / giveaway"],
   approved: ["funny", "strong reaction", "epic moment", "good hook", "funny only in part (trim)"],
+  edit: ["timing: start earlier", "timing: start later", "timing: end earlier", "timing: end later",
+         "lag / audio-video desync", "webcam moved / wrong crop", "subtitles wrong"],
 };
+const PLATFORMS = ["tiktok", "reels", "shorts"];
+let plats = new Set(["tiktok"]);
 const SPEEDS = [1, 1.5, 2, 2.5];
 const CHAT_LAG = 6; // chat reacts ~6 s after the moment
 const SWIPE = 120;  // px of drag / trackpad scroll that counts as a swipe
@@ -154,7 +159,7 @@ async function load() {
 function updateCount() {
   const left = clips.length;
   document.getElementById("count").textContent = total > left
-    ? `${left} in this batch · ${total} pending` : `${total} pending`;
+    ? `${left} in this batch · ${total} to review` : `${total} to review`;
   document.getElementById("tally").innerHTML = (tally.approved + tally.rejected)
     ? `this session: <b class="a">${tally.approved} ✓</b> <b class="r">${tally.rejected} ✕</b>` : "";
 }
@@ -167,7 +172,7 @@ function show(c, from = "in") {
   main.replaceChildren();
   updateCount();
   if (!c) {
-    main.append($("div", "empty", total > 0 ? "Batch done — loading the next one…" : "No pending clips. New ones appear here while streams are live — reload later."));
+    main.append($("div", "empty", total > 0 ? "Batch done — loading the next one…" : "Review lanes are empty. New clips appear here while streams are live — reload later."));
     if (total > 0) setTimeout(() => load(), 300);
     return;
   }
@@ -196,8 +201,9 @@ function stage(c) {
   const rej = $("button", "btn big bad"); rej.innerHTML = "✕ Reject<kbd>←</kbd>"; rej.onclick = () => openSheet("rejected");
   const app = $("button", "btn big ok"); app.innerHTML = "✓ Approve<kbd>→</kbd>"; app.onclick = () => openSheet("approved");
   const und = $("button", "btn", "↶ Undo"); und.title = "U"; und.disabled = !undoStack.length; und.onclick = doUndo;
+  const ed = $("button", "btn", "✎ Edit"); ed.title = "E — send back for a re-cut"; ed.onclick = () => openSheet("edit");
   const skip = $("button", "btn", "Skip"); skip.title = "N — move to the end of this batch"; skip.onclick = doSkip;
-  bar.append(und, rej, app, skip);
+  bar.append(und, rej, ed, app, skip);
   st.append(wrap, sheet, bar);
   bindSwipe(wrap);
   return st;
@@ -272,7 +278,17 @@ function openSheet(kind) {
   sheetKind = kind;
   sheet.className = "sheet show " + (kind === "approved" ? "ok" : "bad");
   sheet.replaceChildren();
-  sheet.append($("h4", null, kind === "approved" ? "✓ Approve — why?" : "✕ Reject — why?"));
+  const head = { approved: "✓ Approve — why?", rejected: "✕ Reject — why?", edit: "✎ Edit — what to fix?" };
+  sheet.append($("h4", null, head[kind]));
+  if (kind === "approved") {
+    const row = $("div", "plats");
+    PLATFORMS.forEach(p => {
+      const b = $("button", "reason" + (plats.has(p) ? " on" : ""), (plats.has(p) ? "☑ " : "☐ ") + p);
+      b.onclick = () => { plats.has(p) ? plats.delete(p) : plats.add(p); openSheet(kind); };
+      row.append(b);
+    });
+    sheet.append(row);
+  }
   REASONS[kind].forEach((t, i) => {
     const b = $("button", "reason"); b.append($("kbd", null, String(i + 1)), $("span", null, t));
     b.onclick = () => submit(kind, t);
@@ -295,18 +311,19 @@ async function submit(decision, note) {
   busy = true;
   const c = cur;
   const r = await fetch("/api/decide", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dir: c.dir, decision, note }) });
+    body: JSON.stringify({ dir: c.dir, decision, note, platforms: [...plats] }) });
   const res = await r.json();
   busy = false;
   if (!r.ok) { toast("Error: " + res.error); return; }
   sheetKind = null; sheet.className = "sheet";
   v.pause();
   undoStack.push({ clip: c, dir: res.dir, decision });
-  tally[decision]++; total--;
+  tally[decision] = (tally[decision] || 0) + 1; total--;
   clips = clips.filter(x => x !== c);
   wrap.classList.remove("drag"); wrap.style.transform = "";
   wrap.classList.add(decision === "approved" ? "out-r" : "out-l");
-  toast(decision === "approved" ? "✓ Approved — ready_to_post: " + res.dir : "✕ Rejected: " + note);
+  toast(decision === "approved" ? "✓ Approved (" + [...plats].join(", ") + "): " + res.dir
+        : decision === "edit" ? "✎ Sent to edit: " + note : "✕ Rejected: " + note);
   setTimeout(() => show(clips[0] || null), 230);
 }
 
@@ -397,6 +414,7 @@ document.addEventListener("keydown", e => {
   else if (lk === "m") { v.currentTime = Math.max((cur.event_offset ?? 0) - 3, 0); v.play(); }
   else if (lk === "n") doSkip();
   else if (lk === "u") doUndo();
+  else if (lk === "e") openSheet("edit");
   else if (lk === "f") { document.fullscreenElement ? document.exitFullscreen() : (st => (st.requestFullscreen || st.webkitRequestFullscreen).call(st))(wrap.parentElement); }
 });
 

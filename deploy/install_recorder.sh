@@ -1,14 +1,14 @@
 #!/bin/bash
 # Install/refresh the Mac's launchd agents. Run by the owner.
-#   deploy/install_recorder.sh          Mac records itself:      recorder + pipeline
-#   deploy/install_recorder.sh mirror   the Pi records:          mirror (pulls from Pi) + pipeline
+#   deploy/install_recorder.sh          Mac records itself:      recorder + pipeline + bot + review
+#   deploy/install_recorder.sh mirror   the Pi records:          mirror (pulls from Pi) + pipeline + bot + review
 # Switching modes removes the agent of the other mode (only one of recorder/mirror may run).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="${1:-recorder}"
 case "$MODE" in
-  recorder) want="recorder pipeline"; drop="mirror" ;;
-  mirror)   want="mirror pipeline";   drop="recorder" ;;
+  recorder) want="recorder pipeline bot review"; drop="mirror" ;;
+  mirror)   want="mirror pipeline bot review";   drop="recorder" ;;
   *) echo "usage: $0 [recorder|mirror]"; exit 2 ;;
 esac
 mkdir -p "$REPO/data/logs"

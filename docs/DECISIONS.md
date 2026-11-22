@@ -214,3 +214,23 @@ stopped the recorder (RequiresMountsFor) and nothing was recorded overnight, sil
   recovery. Last result goes to data/health_status.json, served by the feed's /health.
 - The Mac mirror polls /health every minute (kv `pi.health`), alerts once if the Pi is unreachable
   for 10 min, and the review page shows a red banner with every problem (incl. a silent mirror).
+
+## 2026-11-22 — Review lanes, Telegram review bot, posting hand-off
+Owner: the goal is now posting, not just labelling; reviewed clips so far were weak cases
+(marathons, group streams). Bratishkin was removed: recording is disabled, and his clip folders
+were moved to `data/clips/to_remove/` for the owner to delete. The LLM judge stays off.
+- Folders are split by language: `data/clips/<ru|en>/<stage>/<login>/<id>`. Language comes from
+  `language:` in streamers.yaml, with `ru` as the default. All current streamers are Ukrainian
+  but stream in Russian.
+- Every clip is still rendered, into `backlog/`. `to_review/` holds at most 15 per streamer, and
+  each decision frees a slot. The slot is refilled with clips from the last 2 h (live, newest
+  first), then the rest by score. This is a review buffer, not a cap: nothing is dropped.
+- The Telegram bot sends one clip at a time and rotates streamers, putting streamers with live
+  clips first. Buttons: Approve / Edit (reasons) / Reject (reasons), TikTok/Reels/Shorts toggles,
+  Note, Skip; decided messages keep an Undo button. Text is a note; a reply attaches the note to
+  that clip.
+- `edit/` is for re-cuts: timing, lag, or a webcam moved. The cam is found once per clip on 7 frames,
+  so a move between clips is handled, but a move inside one clip is not. Fix with `clipper.review recut`.
+- Approve writes post.json and cover.jpg for the posting agent (`docs/POSTING_AGENT.md`). The agent
+  reports back through `clipper.post mark`. A `posted` mark logs the post for view tracking, and
+  once every platform is done the folder moves to posted/.

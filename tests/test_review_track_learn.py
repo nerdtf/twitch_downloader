@@ -17,13 +17,13 @@ def seed(store):
 def test_review_sync_records_labels(tmp_path):
     store = Store(tmp_path / "x.db")
     seed(store)
-    d = tmp_path / "clips/rejected/buster/00007_20261119-2100"
+    d = tmp_path / "clips/ru/rejected/buster/00007_20261119-2100"
     d.mkdir(parents=True)
+    (d / "meta.json").write_text("{}", encoding="utf-8")
     (d / "note.txt").write_text("политика", encoding="utf-8")
     assert sync(store, tmp_path / "clips") == {"approved": 0, "rejected": 1}
     lab = store.conn.execute("SELECT decision, reason FROM labels WHERE candidate_id=7").fetchone()
     assert tuple(lab) == ("rejected", "политика")
-    assert (tmp_path / "clips/index.html").exists()
 
 
 def test_tracker_due_and_learning_rows(tmp_path):
@@ -45,7 +45,7 @@ def test_review_server_decide_requires_note_and_moves(tmp_path):
     store = Store(tmp_path / "x.db")
     seed(store)
     root = tmp_path / "clips"
-    d = root / "pending/buster/00007_20261119-2100"
+    d = root / "ru/to_review/buster/00007_20261119-2100"
     d.mkdir(parents=True)
     meta = {"login": "buster", "score": 50, "duration": 30, "start_epoch": 90, "end_epoch": 120,
             "event_utc": "1970-01-01T00:01:40+00:00"}  # fmt: skip
@@ -57,11 +57,13 @@ def test_review_server_decide_requires_note_and_moves(tmp_path):
     [item] = list_pending(store, root)
     assert item["event_offset"] == 10.0 and item["chat"][0]["laugh"]
     with pytest.raises(ValueError):
-        decide(store, item["dir"], "approved", " ", root)
+        decide(store, item["dir"], "rejected", " ", root)  # reject needs a reason
     with pytest.raises(ValueError):
-        decide(store, "../../etc", "approved", "ok", root)
-    dst = decide(store, item["dir"], "approved", "смешно", root)
-    assert dst == root / "approved/buster/00007_20261119-2100" and not d.exists()
+        decide(store, item["dir"], "approved", "ok", root)  # approve needs a platform
+    with pytest.raises(ValueError):
+        decide(store, "../../etc", "approved", "ok", root, platforms=["tiktok"])
+    dst = decide(store, item["dir"], "approved", "смешно", root, platforms=["tiktok"])
+    assert dst == root / "ru/approved/buster/00007_20261119-2100" and not d.exists()
     assert (dst / "note.txt").read_text(encoding="utf-8").strip() == "смешно"
     lab = store.conn.execute("SELECT decision, reason FROM labels WHERE candidate_id=7").fetchone()
     assert tuple(lab) == ("approved", "смешно")
@@ -69,8 +71,9 @@ def test_review_server_decide_requires_note_and_moves(tmp_path):
 
     with pytest.raises(ValueError):
         undo(store, item["dir"], root)  # still a pending path -> refused
-    back = undo(store, "approved/buster/00007_20261119-2100", root)
+    back = undo(store, "ru/approved/buster/00007_20261119-2100", root)
     assert back == d and d.is_dir() and not (d / "note.txt").exists()
+    assert not (d / "post.json").exists()
     assert store.conn.execute("SELECT COUNT(*) FROM labels").fetchone()[0] == 0
 
 
@@ -80,7 +83,7 @@ def test_review_list_pending_limit_and_counts(tmp_path):
     store = Store(tmp_path / "x.db")
     root = tmp_path / "clips"
     for i, (login, score) in enumerate([("a", 10), ("a", 30), ("b", 20)]):
-        d = root / f"pending/{login}/0000{i}_20261119-2100"
+        d = root / f"ru/to_review/{login}/0000{i}_20261119-2100"
         d.mkdir(parents=True)
         (d / "meta.json").write_text(json.dumps({"login": login, "score": score}), "utf-8")
     assert [c["score"] for c in list_pending(store, root, limit=2)] == [30, 20]

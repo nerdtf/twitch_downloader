@@ -4,7 +4,8 @@
   uv run python -m clipper.pipeline live                                     # during streams
   uv run python -m clipper.pipeline catchup --hours 10                       # after Mac sleep
 
-Output: data/clips/pending/<login>/<id>/{clip.mp4,caption.txt,meta.json} + data/clips/index.html
+Output: data/clips/<lang>/backlog/<login>/<id>/{clip.mp4,caption.txt,meta.json}; the review lanes
+(<lang>/to_review, 15 per streamer) are topped up from there (clipper.review.lanes).
 """
 
 import argparse
@@ -25,6 +26,7 @@ from clipper.pipeline.stage2 import (
     insert_candidates,
     judge_candidates,
 )
+from clipper.review.lanes import refill
 from clipper.scoring.stage1 import load_scoring_config, stage1
 from clipper.sources import RecordingSource, VodSource
 from clipper.store import Store
@@ -109,7 +111,10 @@ def run_live(args) -> None:
             "SELECT id, login, started_epoch FROM recordings WHERE ended_epoch IS NULL OR ended_epoch > ?",
             (now - 600,),
         ).fetchall()
+        enabled = {s.login for s in load_config(args.config).streamers}  # re-read: owner edits it
         for r in recs:
+            if r["login"] not in enabled:
+                continue  # removed streamer (bratishkinoff 2026-11-22): no new clips
             try:
                 if helix and r["login"] in user_ids and now - last_clip_poll.get(r["id"], 0) > 50:
                     started = datetime.fromtimestamp(r["started_epoch"], UTC).strftime(
@@ -120,6 +125,7 @@ def run_live(args) -> None:
                 process_live_recording(store, r["id"], cfg, judge, args, now)
             except Exception as e:
                 log.exception("recording %s: %s", r["id"], e)
+        refill(store)
         write_index()
         time.sleep(args.interval)
 
@@ -197,6 +203,7 @@ def run_backfill(args) -> None:
             print("rendered", render_judged(store, src, j), f"score={j.score}", flush=True)
         except Exception as e:  # segment expired by TTL, etc.
             log.error("backfill render failed for candidate %s: %s", r["id"], e)
+    refill(store)
     print("review:", write_index())
 
 

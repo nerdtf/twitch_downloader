@@ -112,8 +112,9 @@ def run_catchup(args) -> None:
     data = _sync(m, chat_after=1 << 62, chat_from_ms=0, events_after=1 << 62, hours=args.hours)
     live = SimpleNamespace(lookback=1200, min_score=args.min_score,
                            render_min=args.render_min, daily_cap=args.daily_cap)  # fmt: skip
+    enabled = {s.login for s in rec_cfg.streamers}
     for rec in data["recordings"]:
-        if args.login and rec["login"] not in args.login:
+        if args.login and rec["login"] not in args.login or rec["login"] not in enabled:
             continue
         segs = [s for s in data["segments"] if s["recording_id"] == rec["id"]]
         if not segs:
@@ -138,6 +139,9 @@ def run_catchup(args) -> None:
                 )
             log.info("%s: done up to %s", rec["login"], time.ctime(now))
             t += STEP
+    from clipper.review.lanes import refill
+
+    refill(store)
     print("review:", write_index())
 
 

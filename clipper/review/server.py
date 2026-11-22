@@ -3,15 +3,15 @@ signals behind each clip.
 
   uv run python -m clipper.review serve        # then open http://127.0.0.1:8765
 
-Decisions move the folder to approved/ or rejected/, write note.txt and store the label
-(same result as moving folders by hand + `clipper.review sync`). Listens on localhost only.
+Shows the to_review lanes (data/clips/<lang>/to_review). Decisions go through clipper.review.queue
+(same as the Telegram bot): approved / rejected / edit. Listens on localhost only.
 """
 
 import json
 import logging
 import mimetypes
 import re
-import shutil
+import time
 from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -19,8 +19,10 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from clipper.chat.lexicon import Lexicon
-from clipper.pipeline.produce import CLIPS, write_index
-from clipper.review.queue import candidate_id, record_label
+from clipper.pipeline.produce import write_index
+from clipper.review import lanes
+from clipper.review.lanes import CLIPS, candidate_id
+from clipper.review.queue import decide, undo  # noqa: F401  (re-exported for callers/tests)
 from clipper.store import Store
 
 log = logging.getLogger(__name__)
@@ -28,7 +30,6 @@ PAGE = Path(__file__).with_name("review.html")
 STYLES_PAGE = Path(__file__).with_name("styles.html")
 CHAT_BEFORE, CHAT_AFTER = 10.0, 20.0  # chat lags the moment by ~3-10 s
 PAGE_SIZE = 100  # clips per page load; decide them and reload for the next batch
-DECISIONS = ("approved", "rejected")
 
 
 def _chat(store: Store, lex: Lexicon, login: str, start: float, end: float) -> list[dict]:
@@ -62,22 +63,16 @@ def _event_offset(m: dict, start: float) -> float | None:
         return None
 
 
-def _pending_metas(root: Path) -> list[tuple[Path, dict]]:
-    out = []
-    for meta_path in (root / "pending").glob("*/*/meta.json"):
-        try:
-            out.append((meta_path.parent, json.loads(meta_path.read_text(encoding="utf-8"))))
-        except (OSError, ValueError):
-            continue
-    out.sort(key=lambda x: -x[1].get("score", 0))
+def _pending_metas(root: Path, lang: str | None = None) -> list[tuple[Path, dict]]:
+    """Clips in the to_review lanes, in lane order (fresh live clips first, then score)."""
+    now = time.time()
+    out = [(d, lanes.read_meta(d)) for d in lanes.clip_dirs(root, "to_review", lang)]
+    out.sort(key=lambda x: lanes.priority(x[1], now))
     return out
 
 
 def pending_counts(root: Path = CLIPS) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for d in (root / "pending").glob("*/*/meta.json"):
-        counts[d.parent.parent.name] = counts.get(d.parent.parent.name, 0) + 1
-    return counts
+    return lanes.counts(root)["to_review"]
 
 
 def list_pending(
@@ -87,7 +82,7 @@ def list_pending(
     login: str | None = None,
     limit: int | None = None,
 ) -> list[dict]:
-    """Pending clips, best score first; only the first `limit` get chat/DB details."""
+    """to_review clips in lane order; only the first `limit` get chat/DB details."""
     lex = lex or Lexicon.load()
     metas = [(d, m) for d, m in _pending_metas(root) if not login or d.parent.name == login]
     items = []
@@ -106,6 +101,7 @@ def list_pending(
             {
                 "dir": str(d.relative_to(root)),
                 "login": m.get("login"),
+                "lang": d.parents[2].name,
                 "layout": m.get("layout", ""),
                 "layout_reason": m.get("layout_reason", ""),
                 "score": m.get("score", 0),
@@ -124,47 +120,6 @@ def list_pending(
             }
         )
     return items
-
-
-def decide(store: Store, rel_dir: str, decision: str, note: str, root: Path = CLIPS) -> Path:
-    """Move pending/<login>/<id> to <decision>/<login>/<id>, write note.txt, store the label."""
-    if decision not in DECISIONS:
-        raise ValueError("decision must be approved or rejected")
-    note = (note or "").strip()
-    if len(note) < 2:
-        raise ValueError("a comment is required")
-    pending = (root / "pending").resolve()
-    src = (root / rel_dir).resolve()
-    if src.parent.parent != pending or not src.is_dir():
-        raise ValueError(f"not a pending clip: {rel_dir}")
-    dst = root / decision / src.parent.name / src.name
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(src), str(dst))
-    (dst / "note.txt").write_text(note + "\n", encoding="utf-8")
-    cid = candidate_id(dst)
-    if cid is not None:
-        record_label(store, cid, decision, note, dst)
-    write_index(root)
-    return dst
-
-
-def undo(store: Store, rel_dir: str, root: Path = CLIPS) -> Path:
-    """Put a decided clip (approved|rejected/<login>/<id>) back to pending and drop its label."""
-    src = (root / rel_dir).resolve()
-    if src.parent.parent not in {(root / d).resolve() for d in DECISIONS} or not src.is_dir():
-        raise ValueError(f"not a decided clip: {rel_dir}")
-    dst = root / "pending" / src.parent.name / src.name
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(src), str(dst))
-    (dst / "note.txt").unlink(missing_ok=True)
-    cid = candidate_id(dst)
-    if cid is not None:
-        store.conn.execute("DELETE FROM labels WHERE candidate_id=?", (cid,))
-        store.conn.execute(
-            "UPDATE candidates SET status='rendered', clip_dir=? WHERE id=?", (str(dst), cid)
-        )
-    write_index(root)
-    return dst
 
 
 def list_styles(root: Path = CLIPS) -> list[dict]:
@@ -278,10 +233,16 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._json(200, {"ok": True})
             if path == "/api/undo":
                 dst = undo(self.store, req.get("dir", ""), self.root)
+                write_index(self.root)
                 log.info("undo %s", dst)
                 return self._json(200, {"ok": True, "dir": str(dst.relative_to(self.root))})
             dir_, dec, note = req.get("dir", ""), req.get("decision", ""), req.get("note", "")
-            dst = decide(self.store, dir_, dec, note, self.root)
+            plats = req.get("platforms")
+            if dec == "approved" and plats is None:
+                plats = ["tiktok"]
+            dst = decide(self.store, dir_, dec, note, self.root, platforms=plats,
+                         reasons=req.get("reasons"))  # fmt: skip
+            write_index(self.root)
         except (ValueError, json.JSONDecodeError) as e:
             return self._json(400, {"error": str(e)})
         log.info("%s %s", req["decision"], dst)

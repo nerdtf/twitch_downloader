@@ -15,6 +15,7 @@ class Streamer:
     login: str
     quality: str
     ttl_hours: float
+    language: str = "ru"  # ru | en: clip folders, review lanes, (later) lexicon and Whisper
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,16 @@ class ConfigError(ValueError):
 def _path(value, base: Path) -> Path:
     p = Path(value).expanduser()
     return p if p.is_absolute() else (base / p)
+
+
+LANGUAGES = ("ru", "en")
+
+
+def _language(entry: dict, defaults: dict, i: int) -> str:
+    lang = str(entry.get("language", defaults.get("language", "ru"))).strip().lower()
+    if lang not in LANGUAGES:
+        raise ConfigError(f"streamers[{i}]: language must be one of {LANGUAGES}, got {lang!r}")
+    return lang
 
 
 def load_config(path: str | Path, base: Path = REPO_ROOT) -> Config:
@@ -92,6 +103,7 @@ def load_config(path: str | Path, base: Path = REPO_ROOT) -> Config:
                 login=login,
                 quality=str(entry.get("quality", defaults.get("quality", "best"))),
                 ttl_hours=float(entry.get("ttl_hours", defaults.get("ttl_hours", 24))),
+                language=_language(entry, defaults, i),
             )
         )
     return Config(recorder=settings, streamers=tuple(streamers))
