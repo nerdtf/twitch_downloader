@@ -55,6 +55,22 @@ def _units(units) -> list[str]:
     return out
 
 
+def _power() -> list[str]:
+    """Pi under-voltage (vcgencmd get_throttled). A bus-powered HDD + weak PSU drops off USB."""
+    if not shutil.which("vcgencmd"):
+        return []
+    r = subprocess.run(["vcgencmd", "get_throttled"], capture_output=True, text=True)
+    try:
+        bits = int(r.stdout.strip().split("=")[1], 16)
+    except (IndexError, ValueError):
+        return []
+    if bits & 0x1:
+        return ["Pi under-voltage NOW (power supply / HDD drawing too much)"]
+    if bits & 0x10000:
+        return ["Pi had under-voltage since boot (power supply / HDD drawing too much)"]
+    return []
+
+
 def _open_recordings(db: Path) -> dict[str, dict]:
     """login -> newest open recording with the mtime of its newest segment file."""
     if not db.exists():
@@ -107,7 +123,7 @@ def check(config: str | Path, now: float | None = None, units=UNITS, twitch=_twi
         free = shutil.disk_usage(rec.data_dir).free / 1e9
         if free < rec.min_free_gb:
             problems.append(f"low disk: {free:.0f} GB free in {rec.data_dir}")
-    problems += _units(units)
+    problems += _units(units) + (_power() if units else [])
     open_recs = _open_recordings(rec.db_path)
     for login, r in open_recs.items():
         last = r["seg_mtime"] or r["started"]
