@@ -158,6 +158,8 @@ def _gigaam(wav: Path) -> dict:
     texts = []
     for k, c0 in enumerate(cuts):
         c1 = cuts[k + 1] if k + 1 < len(cuts) else len(a)
+        if c1 - c0 < sr // 2:  # GigaAM crashes on (near-)empty input: "Invalid input shape {0}"
+            continue
         st = _GIGAAM.create_stream()
         st.accept_waveform(sr, a[c0:c1])
         _GIGAAM.decode_stream(st)

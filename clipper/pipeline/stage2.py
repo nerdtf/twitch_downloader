@@ -102,6 +102,13 @@ def judge_candidates(
         audio, off = source.audio_for(a, b)
         try:
             tr = transcribe_window(audio, off, b - a, language=language)
+        except Exception as e:  # one bad window must not block the rest of the stream
+            log.error("candidate %s: transcription failed, dropped: %s", cid, e)
+            store.conn.execute(
+                "UPDATE candidates SET status='dropped', gate_reason=? WHERE id=?",
+                (f"transcription failed: {e}"[:200], cid),
+            )
+            continue
         finally:  # joined temp copy (~0.5 GB): leaked 125 GB in /tmp before 2026-11-20
             if audio.name.startswith("clipper_rec") and audio.parent == Path(tempfile.gettempdir()):
                 audio.unlink(missing_ok=True)
