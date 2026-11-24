@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -63,23 +64,45 @@ class Telegram:
         return body["result"]
 
 
+TG_SMALL = 15 * 1024 * 1024  # clips under this go as they are
+TG_KBPS = 2200  # preview bitrate: ~15 MB/min uploads in seconds (the full clip stays for posting)
+
+
 def tg_video(d: Path) -> Path:
-    """clip.mp4, or a smaller tg.mp4 copy when it is over Telegram's 50 MB bot limit."""
+    """A light 720p tg.mp4 preview (made ahead of time by prepare_previews), or clip.mp4 if it
+    is small already or the encode fails."""
     clip = d / "clip.mp4"
-    if clip.stat().st_size <= TG_MAX:
+    if clip.stat().st_size <= TG_SMALL:
         return clip
     small = d / "tg.mp4"
     if small.exists() and small.stat().st_mtime >= clip.stat().st_mtime:
         return small
-    dur = float(read_meta(d).get("duration") or 60)
-    kbps = int(min(6000, (TG_MAX * 8 / 1000) * 0.85 / max(dur, 1) - 160))
-    for enc in (["-c:v", "h264_videotoolbox", "-b:v", f"{kbps}k"],
-                ["-c:v", "libx264", "-preset", "veryfast", "-b:v", f"{kbps}k"]):  # fmt: skip
+    tmp = d / "tg.tmp.mp4"
+    for enc in (["-c:v", "h264_videotoolbox", "-b:v", f"{TG_KBPS}k"],
+                ["-c:v", "libx264", "-preset", "veryfast", "-b:v", f"{TG_KBPS}k"]):  # fmt: skip
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(clip), "-vf", "scale=720:-2", *enc,
-               "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(small)]  # fmt: skip
-        if subprocess.run(cmd, capture_output=True).returncode == 0 and small.exists():
+               "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(tmp)]  # fmt: skip
+        if subprocess.run(cmd, capture_output=True).returncode == 0 and tmp.exists():
+            tmp.replace(small)
             return small
-    return clip
+    tmp.unlink(missing_ok=True)
+    return clip if clip.stat().st_size <= TG_MAX else small
+
+
+def prepare_previews(root: Path = CLIPS) -> int:
+    """Make tg.mp4 for every clip in the lanes, so the next clip is sent without waiting."""
+    n = 0
+    for d in lanes.clip_dirs(root, "to_review"):
+        small = d / "tg.mp4"
+        clip = d / "clip.mp4"
+        if (
+            clip.exists()
+            and clip.stat().st_size > TG_SMALL
+            and (not small.exists() or small.stat().st_mtime < clip.stat().st_mtime)
+        ):
+            tg_video(d)
+            n += 1
+    return n
 
 
 def pick_next(root: Path, last_login: str | None, shown: dict, skipped: dict, now: float):
@@ -280,6 +303,10 @@ class ReviewBot:
         parts = data.split(":")
         act, cid = parts[0], int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else None
         cur = self.st["cur"]
+        quick = act in ("a", "rr", "er", "s", "u") and cur is not None
+        if quick:  # slow actions: stop the button spinner first, report problems as a message
+            with contextlib.suppress(RuntimeError):
+                self.api("answerCallbackQuery", callback_query_id=q["id"], text="✓ next clip…")
         try:
             if act == "u":
                 answer = self.undo(cid)
@@ -323,6 +350,11 @@ class ReviewBot:
             answer = str(e)[:190]
             log.warning("callback %s: %s", data, e)
         self.save()
+        if quick:
+            if answer and answer not in ("Approved", "Rejected", "Sent to edit", "undone"):
+                with contextlib.suppress(RuntimeError):
+                    self.send(f"⚠️ {answer}", disable_notification="true")
+            return
         with contextlib.suppress(RuntimeError):
             self.api("answerCallbackQuery", callback_query_id=q["id"], text=answer)
 
@@ -426,6 +458,17 @@ def run(store: Store, root: Path = CLIPS) -> None:
         return tg(method, files=files, timeout=timeout, **data)
 
     bot = ReviewBot(store, api, chat, root)
+
+    def previews():  # keep tg.mp4 ready for the lanes, in the background
+        while True:
+            try:
+                if prepare_previews(root):
+                    continue
+            except Exception as e:  # noqa: BLE001
+                log.warning("previews: %s", e)
+            time.sleep(30)
+
+    threading.Thread(target=previews, daemon=True).start()
     log.info("review bot started (lane %d per streamer)", lanes.LANE)
     while True:
         try:
